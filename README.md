@@ -12,6 +12,14 @@ This library provides a client for the Bose SoundTouch API.
 bose_soundtouch = "0.1"
 ```
 
+## Usage
+
+Running the example can be done as following:
+
+```bash
+cargo run --example bose status
+```
+
 ## Releases
 
 We have a github workflow in place to publish to [crates.io](https://crates.io/crates/bose_soundtouch) once the code was built (and tested) successfully.
