@@ -2,6 +2,13 @@
 name = "bose_soundtouch"
 version = "0.1.0"
 edition = "2021"
+description = "Client library for the Bose SoundTouch API"
+homepage = "https://github.com/timvw/bose_soundtouch"
+respository = "https://github.com/timvw/bose_soundtouch"
+readme = "README.md"
+authors = ["Tim Van Wassenhove <tim@timvw.be>"]
+keywords = ["bose", "soundtouch", "client"]
+license = "Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
