@@ -61,7 +61,11 @@ jobs:
       - name: "cargo release version"
         run: |-
           cargo release \
-            version ${{ github.ref_name }}
+            version \
+            --allow-branch HEAD \
+            --no-confirm \
+            --execute \
+             ${{ github.ref_name }}
 
       - name: "cargo release publish"
         run: |-
