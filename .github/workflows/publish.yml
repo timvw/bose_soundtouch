@@ -1,7 +1,7 @@
 on:
   push:
     tags:
-      - '*'
+      - 'v[0-9]+.[0-9]+.[0-9]+'
 
 name: Publish
 
@@ -58,6 +58,12 @@ jobs:
       - name: cargo login
         run: cargo login ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
+      - name: Write release version
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          echo Version: $VERSION
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
       - name: "cargo release version"
         run: |-
           cargo release \
@@ -65,7 +71,7 @@ jobs:
             --allow-branch HEAD \
             --no-confirm \
             --execute \
-             ${{ github.ref_name }}
+             ${VERSION}
 
       - name: "cargo publish"
         run: |-
