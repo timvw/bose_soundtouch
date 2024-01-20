@@ -18,3 +18,8 @@ quick-xml = { version = "0.31", features = ["serialize"] }
 reqwest = { version = "0.11", features = ["blocking"] }
 serde = { version = "1.0", features = ["derive"] }
 
+[dev-dependencies]
+anyhow = "1.0"
+clap = { version = "4.4", features = ["derive", "env"] }
+tokio = { version = "1.0", features = ["full", "tracing"] }
+
