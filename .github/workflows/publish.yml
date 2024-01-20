@@ -67,13 +67,8 @@ jobs:
             --execute \
              ${{ github.ref_name }}
 
-      - name: "cargo release publish"
+      - name: "cargo publish"
         run: |-
-          cargo release \
-            publish \
-            --workspace \
+          cargo publish \
             --all-features \
-            --allow-branch HEAD \
-            --no-confirm \
-            --no-verify \
-            --execute
+            --allow-dirty
