@@ -8,7 +8,7 @@ Add `bose_soundtouch` to your `Cargo.toml`:
 ```toml
 [dependencies]
 bose_soundtouch = { version = "0.1" }
-tokio = { version = "1.0", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
 ```
 
 ## Getting the status of your speaker
@@ -18,7 +18,7 @@ use bose_soundtouch::BoseClient;
 
 #[tokio::main]
 async fn main() {
-    let client = BoseClient::new("192.168.1.10");
+    let client = BoseClient::new("192.168.1.143");
     let status = client.get_status().await.unwrap();
     println!("status: {:?}", status);
 }
