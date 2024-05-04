@@ -9,7 +9,7 @@ This library provides a client for the Bose SoundTouch API.
 
 ```toml
 [dependencies]
-bose_soundtouch = "0.1"
+bose_soundtouch = "1"
 ```
 
 ## Usage
