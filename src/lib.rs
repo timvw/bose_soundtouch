@@ -7,7 +7,7 @@ Add `bose_soundtouch` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-bose_soundtouch = { version = "0.1" }
+bose_soundtouch = { version = "1" }
 tokio = { version = "1", features = ["full"] }
 ```
 
