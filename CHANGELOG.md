@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1](https://github.com/timvw/bose_soundtouch/compare/v1.1.0...v1.1.1) - 2024-06-14
+
+### Other
+- *(deps)* update rust crate clap to v4.5.7
+- *(deps)* update rust crate anyhow to v1.0.83
+- updated example to version 1 as well
+- updated readme to use version 1
+
 ## [1.1.0](https://github.com/timvw/bose_soundtouch/compare/v1.0.9...v1.1.0) - 2024-05-04
 
 ### Added
