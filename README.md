@@ -20,3 +20,9 @@ Running the example can be done as following:
 cargo run --example bose status
 ```
 
+Releasing the example app can be done as following:
+
+```bash
+cargo build --examples --release
+```
+
