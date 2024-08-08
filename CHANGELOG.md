@@ -6,6 +6,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1](https://github.com/timvw/bose_soundtouch/compare/v1.1.0...v1.1.1) - 2024-08-08
+
+### Fixed
+- *(deps)* update rust crate serde to v1.0.205
+- *(deps)* update rust crate quick-xml to v0.36.1
+- *(deps)* update rust crate thiserror to v1.0.63
+- *(deps)* update rust crate thiserror to v1.0.62
+- *(deps)* update rust crate quick-xml to 0.36
+- *(deps)* update rust crate serde to v1.0.204
+- *(deps)* update rust crate quick-xml to 0.35
+- *(deps)* update rust crate quick-xml to 0.34
+- *(deps)* update rust crate quick-xml to 0.33
+- *(deps)* update rust crate reqwest to v0.12.5
+- *(deps)* update rust crate serde to v1.0.203
+- *(deps)* update rust crate quick-xml to 0.32
+
+### Other
+- *(deps)* update rust crate clap to v4.5.14
+- *(deps)* update rust crate clap to v4.5.13
+- *(deps)* update rust crate tokio to v1.39.2
+- *(deps)* update rust crate clap to v4.5.11
+- *(deps)* update rust crate tokio to v1.39.1
+- *(deps)* update rust crate clap to v4.5.10
+- *(deps)* update rust crate tokio to v1.38.1
+- *(deps)* update rust crate clap to v4.5.9
+- *(deps)* update rust crate clap to v4.5.8
+- specify how the example app can be built
+- *(deps)* update rust crate anyhow to v1.0.86
+- allow renovate to automerge
+- Merge pull request [#16](https://github.com/timvw/bose_soundtouch/pull/16) from timvw/renovate/thiserror-1.x-lockfile
+- Merge pull request [#19](https://github.com/timvw/bose_soundtouch/pull/19) from timvw/renovate/tokio-1.x-lockfile
+- Merge pull request [#21](https://github.com/timvw/bose_soundtouch/pull/21) from timvw/renovate/quick-xml-0.x
+- *(deps)* update rust crate anyhow to v1.0.83
+- updated example to version 1 as well
+- updated readme to use version 1
+
 ## [1.1.0](https://github.com/timvw/bose_soundtouch/compare/v1.0.9...v1.1.0) - 2024-05-04
 
 ### Added
