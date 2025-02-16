@@ -169,7 +169,7 @@ checksum = "ed570934406eb16438a4e976b1b4500774099c13b8cb96eec99f620f05090ddf"
 
 [[package]]
 name = "bose_soundtouch"
-version = "1.1.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "clap",
