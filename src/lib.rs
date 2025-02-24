@@ -1077,7 +1077,7 @@ async fn get_xml<U: IntoUrl + Debug + Clone, T: DeserializeOwned>(url: U) -> Res
         .await
         .map_err(BoseError::HttpClientError)?;
     let body = response.text().await?;
-    tracing::debug!("Response from {}: {}", url.as_str(), body);
+    log::debug!("Response from {}: {}", url.as_str(), body);
     let value: T = quick_xml::de::from_str(&body).map_err(BoseError::XmlError)?;
     Ok(value)
 }
