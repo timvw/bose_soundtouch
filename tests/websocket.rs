@@ -19,7 +19,7 @@ mod tests {
 
     #[test]
     fn test_parse_now_playing() {
-        let mut client = BoseClient::new("test");
+        let mut client = BoseClient::new_from_string("test");
         let _rx = client.subscribe();
         let event = client.parse_event(SAMPLE_NOW_PLAYING).expect("Failed to parse now playing event");
         match event {
@@ -34,7 +34,7 @@ mod tests {
 
     #[test]
     fn test_parse_volume() {
-        let mut client = BoseClient::new("test");
+        let mut client = BoseClient::new_from_string("test");
         let _rx = client.subscribe();
         let event = client.parse_event(SAMPLE_VOLUME).expect("Failed to parse volume event");
         match event {
@@ -49,7 +49,7 @@ mod tests {
 
     #[test]
     fn test_parse_connection() {
-        let mut client = BoseClient::new("test");
+        let mut client = BoseClient::new_from_string("test");
         let _rx = client.subscribe();
         let event = client.parse_event(SAMPLE_CONNECTION).expect("Failed to parse connection event");
         match event {
@@ -65,7 +65,7 @@ mod tests {
     #[cfg(feature = "unknown-variants")]
     #[test]
     fn test_parse_unknown_values() {
-        let mut client = BoseClient::new("test");
+        let mut client = BoseClient::new_from_string("test");
         let _rx = client.subscribe();
         
         let event = client.parse_event(SAMPLE_UNKNOWN_SOURCE).expect("Failed to parse unknown source");
@@ -81,7 +81,7 @@ mod tests {
     #[cfg(not(feature = "unknown-variants"))]
     #[test]
     fn test_reject_unknown_values() {
-        let mut client = BoseClient::new("test");
+        let mut client = BoseClient::new_from_string("test");
         let _rx = client.subscribe();
         
         let result = client.parse_event(SAMPLE_UNKNOWN_SOURCE);

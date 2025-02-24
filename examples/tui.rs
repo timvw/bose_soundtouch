@@ -37,7 +37,7 @@ struct App {
 
 impl App {
     fn new(hostname: &str) -> Self {
-        let mut client = BoseClient::new(hostname);
+        let mut client = BoseClient::new_from_string(hostname);
         let _rx = client.subscribe();
         Self {
             client,
@@ -247,6 +247,7 @@ impl App {
     }
 }
 
+#[allow(deprecated)]  // Allow use of deprecated new() method
 #[tokio::main]
 async fn main() -> io::Result<()> {
     // Setup logging
@@ -273,7 +274,7 @@ async fn main() -> io::Result<()> {
     let mut app = App::new("192.168.1.143");
     
     // Start WebSocket listener in background
-    let mut client = BoseClient::new(app.client.hostname());
+    let mut client = BoseClient::new_from_string(app.client.hostname());
     let _rx = client.subscribe();
     tokio::spawn(async move {
         if let Err(e) = client.connect_and_listen().await {

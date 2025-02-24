@@ -51,7 +51,7 @@ struct GlobalOpts {
 #[tokio::main]
 async fn main() {
     let app_args = AppArgs::parse();
-    let client = BoseClient::new(&app_args.global_opts.hostname);
+    let client = BoseClient::new_from_string(&app_args.global_opts.hostname);
     let result = match app_args.command {
         Command::Status => print_status(&client).await,
         Command::Power => client

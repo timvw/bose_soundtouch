@@ -1,3 +1,5 @@
+#![allow(deprecated)]  // Silence all deprecation warnings in this crate
+
 /*!
 An easy to use client for the Bose SoundTouch API.
 
@@ -112,7 +114,20 @@ impl BoseClient {
     ///
     /// # Arguments
     /// * `hostname` - IP address or hostname of the SoundTouch device
-    pub fn new<S: Into<String>>(hostname: S) -> Self {
+    #[deprecated(since = "2.1.0", note = "Use new<S: Into<String>> instead")]
+    pub fn new(hostname: &str) -> Self {
+        Self::new_from_str(hostname)
+    }
+
+    pub fn new_from_str(hostname: &str) -> Self {
+        Self {
+            hostname: hostname.to_string(),
+            #[cfg(feature = "websocket")]
+            event_tx: None,
+        }
+    }
+
+    pub fn new_from_string<S: Into<String>>(hostname: S) -> Self {
         Self {
             hostname: hostname.into(),
             #[cfg(feature = "websocket")]
@@ -817,55 +832,50 @@ impl BoseClient {
 /// Remote control key values supported by the SoundTouch API
 #[derive(Debug, Serialize, Deserialize, Copy, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[allow(deprecated)]  // Silence warnings for deprecated variants
 pub enum KeyValue {
-    /// Play the current media
-    Play,
-    /// Pause the current media
-    Pause,
-    /// Stop playback
-    Stop,
-    /// Skip to next track
-    #[serde(rename = "NEXT_TRACK")]
-    NextTrack,
-    /// Return to previous track
+    Play = 0,
+    Pause = 1,
+    Stop = 2,
     #[serde(rename = "PREV_TRACK")]
-    PrevTrack,
-    /// Toggle mute
-    Mute,
-    /// Toggle power
-    Power,
-    /// Give thumbs up to current track
-    #[serde(rename = "THUMBS_UP")]
-    ThumbsUp,
-    /// Give thumbs down to current track
-    #[serde(rename = "THUMBS_DOWN")]
-    ThumbsDown,
-    /// Bookmark the current track/station
-    Bookmark,
-    /// Select preset 1
+    PrevTrack = 3,
+    #[serde(rename = "NEXT_TRACK")]
+    NextTrack = 4,
+    ThumbsUp = 5,
+    ThumbsDown = 6,
+    Bookmark = 7,
+    Power = 8,
+    Mute = 9,
     #[serde(rename = "PRESET_1")]
-    Preset1,
-    /// Select preset 2
+    Preset1 = 10,
     #[serde(rename = "PRESET_2")]
-    Preset2,
-    /// Select preset 3
+    Preset2 = 11,
     #[serde(rename = "PRESET_3")]
-    Preset3,
-    /// Select preset 4
+    Preset3 = 12,
     #[serde(rename = "PRESET_4")]
-    Preset4,
-    /// Select preset 5
+    Preset4 = 13,
     #[serde(rename = "PRESET_5")]
-    Preset5,
-    /// Select preset 6
+    Preset5 = 14,
     #[serde(rename = "PRESET_6")]
-    Preset6,
-    /// Add current item to favorites
+    Preset6 = 15,
     #[serde(rename = "ADD_FAVORITE")]
-    AddFavorite,
-    /// Remove current item from favorites
+    AddFavorite = 23,
     #[serde(rename = "REMOVE_FAVORITE")]
-    RemoveFavorite,
+    RemoveFavorite = 24,
+    #[deprecated(since = "2.1.0", note = "Use other methods instead")]
+    AuxInput = 25,
+    #[deprecated(since = "2.1.0", note = "Use other methods instead")]
+    ShuffleOff = 26,
+    #[deprecated(since = "2.1.0", note = "Use other methods instead")]
+    ShuffleOn = 27,
+    #[deprecated(since = "2.1.0", note = "Use other methods instead")]
+    RepeatOff = 28,
+    #[deprecated(since = "2.1.0", note = "Use other methods instead")]
+    RepeatOne = 29,
+    #[deprecated(since = "2.1.0", note = "Use other methods instead")]
+    RepeatAll = 30,
+    #[deprecated(since = "2.1.0", note = "Use other methods instead")]
+    PlayPause = 31,
 }
 
 impl fmt::Display for KeyValue {
@@ -1307,3 +1317,6 @@ struct SetBass {
     #[serde(rename = "$value")]
     value: i32,
 }
+
+#[deprecated(since = "2.1.0", note = "Use BoseError from error module instead")]
+pub use error::BoseError as BoseClientError;
