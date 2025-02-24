@@ -1,23 +1,25 @@
 use serde::{Deserialize, Serialize};
 
-// HTTP API types
+/// Client for interacting with Bose SoundTouch devices
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BoseClient {
     pub hostname: String,
 }
 
-// WebSocket types
+/// Information about the SoundTouch SDK version
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SdkInfo {
     pub server_version: String,
     pub server_build: String,
 }
 
+/// User activity event from the device
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserActivity {
     pub device_id: String,
 }
 
+/// Volume settings for the device
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Volume {
     #[serde(rename = "targetvolume")]
@@ -28,11 +30,13 @@ pub struct Volume {
     pub mute_enabled: bool,
 }
 
+/// Volume update event from the device
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VolumeUpdate {
     pub volume: Volume,
 }
 
+/// Content item representing a media source or track
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContentItem {
     #[serde(rename = "@source")]
@@ -51,6 +55,7 @@ pub struct ContentItem {
     pub container_art: Option<String>,
 }
 
+/// Currently playing media information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NowPlaying {
     #[serde(rename = "@deviceID")]
@@ -77,12 +82,14 @@ pub struct NowPlaying {
     pub favorite_enabled: Option<String>,
 }
 
+/// Now playing update event from the device
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NowPlayingUpdate {
     #[serde(rename = "nowPlaying")]
     pub now_playing: NowPlaying,
 }
 
+/// Preset station/source configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Preset {
     pub id: u8,
@@ -90,6 +97,7 @@ pub struct Preset {
     pub content_item: ContentItem,
 }
 
+/// Recently played item
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Recent {
     pub device_id: String,
@@ -99,16 +107,19 @@ pub struct Recent {
     pub content_item: ContentItem,
 }
 
+/// Collection of recently played items
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Recents {
     pub recent: Vec<Recent>,
 }
 
+/// Recents update event from the device
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RecentsUpdate {
     pub recents: Recents,
 }
 
+/// Network connection state information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConnectionState {
     #[serde(rename = "@state")]
@@ -119,19 +130,29 @@ pub struct ConnectionState {
     pub signal: String,
 }
 
+/// Events that can be received from the device's WebSocket API
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum SoundTouchEvent {
+    /// Device SDK information received
     DeviceInfo(SdkInfo),
+    /// User activity detected
     UserActivity(UserActivity),
+    /// Volume settings changed
     VolumeUpdated(VolumeUpdate),
+    /// Now playing information changed
     NowPlayingUpdated(NowPlayingUpdate),
+    /// Preset was selected
     PresetSelected(Preset),
+    /// Recently played items updated
     RecentsUpdated(RecentsUpdate),
+    /// Network connection state changed
     ConnectionStateUpdated(ConnectionState),
+    /// WebSocket connection closed
     Disconnected,
 }
 
+/// Collection of updates received from the device
 #[derive(Serialize, Deserialize)]
 pub struct Updates {
     #[serde(rename = "@deviceID")]
