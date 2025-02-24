@@ -64,20 +64,21 @@ async fn main() {
 
 */
 
+mod error;
+mod types;
+mod websocket;
+
+pub use error::SoundTouchError;
+pub use types::SoundTouchEvent;
+pub use websocket::SoundTouchWebSocket;
+
+// Remove unused imports
 use reqwest::{Client, IntoUrl};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fmt::Debug;
 use thiserror::Error;
-
-// Add new module declarations
-mod error;
-mod types;
-mod websocket;
-
-// Add new exports
-pub use websocket::{SoundTouchWebSocket, SoundTouchEvent};
 
 // Add WebSocket dependencies to existing uses
 use tokio_tungstenite;
