@@ -1,14 +1,14 @@
 use serde::{Deserialize, Serialize};
 
 // HTTP API types
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BoseClient {
     pub hostname: String,
 }
 
 // WebSocket types
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DeviceInfo {
+pub struct WebSocketDeviceInfo {
     pub server_version: String,
     pub server_build: String,
 }
@@ -122,7 +122,7 @@ pub struct ConnectionState {
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum SoundTouchEvent {
-    DeviceInfo(DeviceInfo),
+    DeviceInfo(WebSocketDeviceInfo),
     UserActivity(UserActivity),
     VolumeUpdated(VolumeUpdate),
     NowPlayingUpdated(NowPlayingUpdate),

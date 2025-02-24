@@ -5,6 +5,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use image::load_from_memory;
+use log;
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
@@ -36,8 +37,10 @@ struct App {
 
 impl App {
     fn new(hostname: &str) -> Self {
+        let mut client = BoseClient::new(hostname);
+        let _rx = client.subscribe();
         Self {
-            client: BoseClient::new(hostname),
+            client,
             device_info: None,
             now_playing: None,
             volume: None,
@@ -267,7 +270,17 @@ async fn main() -> io::Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     // Create app and run it
-    let mut app = App::new("192.168.1.143"); // Replace with your speaker's IP
+    let mut app = App::new("192.168.1.143");
+    
+    // Start WebSocket listener in background
+    let mut client = BoseClient::new(app.client.hostname());
+    let _rx = client.subscribe();
+    tokio::spawn(async move {
+        if let Err(e) = client.connect_and_listen().await {
+            log::error!("WebSocket error: {}", e);
+        }
+    });
+
     let res = run_app(&mut terminal, &mut app).await;
 
     // Restore terminal

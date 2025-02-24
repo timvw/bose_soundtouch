@@ -6,8 +6,9 @@ const SAMPLE_CONNECTION: &str = include_str!("samples/connection.xml");
 
 #[test]
 fn test_parse_now_playing() {
-    let ws = SoundTouchWebSocket::new("test".to_string());
-    let event = ws.parse_event(SAMPLE_NOW_PLAYING).expect("Failed to parse now playing event");
+    let mut client = BoseClient::new("test");
+    let _rx = client.subscribe(); // Need to initialize event channel
+    let event = client.parse_event(SAMPLE_NOW_PLAYING).expect("Failed to parse now playing event");
     match event {
         SoundTouchEvent::NowPlayingUpdated(update) => {
             assert_eq!(update.now_playing.source, "TUNEIN");
@@ -20,8 +21,9 @@ fn test_parse_now_playing() {
 
 #[test]
 fn test_parse_volume() {
-    let ws = SoundTouchWebSocket::new("test".to_string());
-    let event = ws.parse_event(SAMPLE_VOLUME).expect("Failed to parse volume event");
+    let mut client = BoseClient::new("test");
+    let _rx = client.subscribe();
+    let event = client.parse_event(SAMPLE_VOLUME).expect("Failed to parse volume event");
     match event {
         SoundTouchEvent::VolumeUpdated(update) => {
             assert_eq!(update.volume.target_volume, 5);
@@ -34,8 +36,9 @@ fn test_parse_volume() {
 
 #[test]
 fn test_parse_connection() {
-    let ws = SoundTouchWebSocket::new("test".to_string());
-    let event = ws.parse_event(SAMPLE_CONNECTION).expect("Failed to parse connection event");
+    let mut client = BoseClient::new("test");
+    let _rx = client.subscribe();
+    let event = client.parse_event(SAMPLE_CONNECTION).expect("Failed to parse connection event");
     match event {
         SoundTouchEvent::ConnectionStateUpdated(state) => {
             assert_eq!(state.state, "NETWORK_WIFI_CONNECTED");

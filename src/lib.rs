@@ -27,20 +27,22 @@ async fn main() {
 ## WebSocket API Example
 
 ```rust,no_run
-use bose_soundtouch::{SoundTouchWebSocket, SoundTouchEvent};
+use bose_soundtouch::{BoseClient, SoundTouchEvent};
 use tokio;
 
 #[tokio::main]
 async fn main() {
-    // Create a new WebSocket client
-    let ws = SoundTouchWebSocket::new("bose-speaker.local".to_string());
+    // Create a new client
+    let mut client = BoseClient::new("bose-speaker.local");
     
     // Subscribe to events
-    let mut rx = ws.subscribe();
+    let mut rx = client.subscribe();
     
     // Start listening in background
+    let mut ws_client = BoseClient::new(client.hostname());
+    let _ws_rx = ws_client.subscribe();
     tokio::spawn(async move {
-        if let Err(e) = ws.connect_and_listen().await {
+        if let Err(e) = ws_client.connect_and_listen().await {
             eprintln!("WebSocket error: {}", e);
         }
     });
@@ -66,17 +68,26 @@ async fn main() {
 
 mod error;
 mod types;
-mod websocket;
 
 pub use error::{BoseError, Result};
 pub use types::*;
-pub use websocket::SoundTouchWebSocket;
 
 use reqwest::{Client, IntoUrl};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fmt::Debug;
+use tokio::sync::broadcast;
+use tokio_tungstenite::{
+    connect_async,
+    tungstenite::{
+        protocol::Message,
+        client::IntoClientRequest,
+    },
+};
+use futures_util::StreamExt;
+use url::Url;
+use log::{info, error};
 
 /// Client for interacting with Bose SoundTouch devices
 ///
@@ -85,6 +96,8 @@ use std::fmt::Debug;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct BoseClient {
     hostname: String,
+    #[serde(skip)]
+    event_tx: Option<broadcast::Sender<SoundTouchEvent>>,
 }
 
 impl BoseClient {
@@ -95,6 +108,131 @@ impl BoseClient {
     pub fn new<S: Into<String>>(hostname: S) -> Self {
         Self {
             hostname: hostname.into(),
+            event_tx: None,
+        }
+    }
+
+    /// Get the hostname of the device
+    pub fn hostname(&self) -> &str {
+        &self.hostname
+    }
+
+    /// Subscribe to WebSocket events from the device
+    pub fn subscribe(&mut self) -> broadcast::Receiver<SoundTouchEvent> {
+        if self.event_tx.is_none() {
+            let (tx, _) = broadcast::channel(100);
+            self.event_tx = Some(tx);
+        }
+        self.event_tx.as_ref().unwrap().subscribe()
+    }
+
+    /// Connect to the WebSocket and start listening for events
+    pub async fn connect_and_listen(&self) -> Result<()> {
+        let url_str = format!("ws://{}:8080", self.hostname);
+        let url = Url::parse(&url_str).map_err(BoseError::UrlParseError)?;
+
+        info!("Connecting to {}", url);
+
+        let mut request = url.into_client_request()
+            .map_err(|e| BoseError::ProtocolError(e.to_string()))?;
+            
+        request.headers_mut().insert(
+            "Sec-WebSocket-Protocol",
+            "gabbo".parse()
+                .map_err(|e| BoseError::ProtocolError(format!("Failed to parse protocol header: {}", e)))?
+        );
+
+        let (ws_stream, response) = connect_async(request)
+            .await
+            .map_err(BoseError::ConnectionError)?;
+
+        if response.headers().get("Sec-WebSocket-Protocol").map(|h| h.as_bytes()) != Some(b"gabbo") {
+            return Err(BoseError::ProtocolError("Server did not accept gabbo protocol".to_string()));
+        }
+
+        info!("WebSocket connection established with gabbo protocol");
+
+        let (_, mut read) = ws_stream.split();
+        let event_tx = self.event_tx.as_ref()
+            .ok_or_else(|| BoseError::ProtocolError("No event sender available".to_string()))?
+            .clone();
+
+        while let Some(message) = read.next().await {
+            match message {
+                Ok(Message::Text(text)) => {
+                    if let Some(event) = self.parse_event(&text) {
+                        if let Err(e) = event_tx.send(event) {
+                            error!("Failed to send event: {}", e);
+                        }
+                    }
+                }
+                Ok(Message::Close(_)) => {
+                    info!("WebSocket connection closed by server");
+                    if let Err(e) = event_tx.send(SoundTouchEvent::Disconnected) {
+                        error!("Failed to send disconnect event: {}", e);
+                    }
+                    break;
+                }
+                Err(e) => {
+                    error!("WebSocket error: {}", e);
+                    break;
+                }
+                _ => {}
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn parse_event(&self, text: &str) -> Option<SoundTouchEvent> {
+        // First try to parse device info
+        if text.contains("SoundTouchSdkInfo") {
+            return match quick_xml::de::from_str::<WebSocketDeviceInfo>(text) {
+                Ok(info) => Some(SoundTouchEvent::DeviceInfo(info)),
+                Err(e) => {
+                    error!("Failed to parse DeviceInfo: {}", e);
+                    None
+                }
+            };
+        }
+
+        // Then try user activity
+        if text.contains("userActivityUpdate") {
+            return match quick_xml::de::from_str::<UserActivity>(text) {
+                Ok(activity) => Some(SoundTouchEvent::UserActivity(activity)),
+                Err(e) => {
+                    error!("Failed to parse UserActivity: {}", e);
+                    None
+                }
+            };
+        }
+
+        // Try to parse updates wrapper
+        if text.contains("<updates") {
+            match quick_xml::de::from_str::<Updates>(text) {
+                Ok(updates) => {
+                    // Convert the update to an event
+                    if let Some(volume) = updates.volume_updated {
+                        Some(SoundTouchEvent::VolumeUpdated(volume))
+                    } else if let Some(now_playing) = updates.now_playing_updated {
+                        Some(SoundTouchEvent::NowPlayingUpdated(now_playing))
+                    } else if let Some(recents) = updates.recents_updated {
+                        Some(SoundTouchEvent::RecentsUpdated(recents))
+                    } else if let Some(connection) = updates.connection_state_updated {
+                        Some(SoundTouchEvent::ConnectionStateUpdated(connection))
+                    } else {
+                        error!("Unknown update type in: {}", text);
+                        None
+                    }
+                }
+                Err(e) => {
+                    error!("Failed to parse Updates: {} from text: {}", e, text);
+                    None
+                }
+            }
+        } else {
+            error!("Unhandled message type: {}", text);
+            None
         }
     }
 
