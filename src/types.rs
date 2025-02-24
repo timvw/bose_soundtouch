@@ -19,13 +19,46 @@ pub struct UserActivity {
     pub device_id: String,
 }
 
+/// Status of artwork for media content
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ArtStatus {
+    /// No artwork available
+    Invalid,
+    /// Using default artwork
+    ShowDefaultImage,
+    /// Artwork is being downloaded
+    Downloading,
+    /// Artwork is available and loaded
+    ImagePresent,
+}
+
+/// Playback status of the device
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PlayStatus {
+    /// Content is playing
+    PlayState,
+    /// Playback is paused
+    PauseState,
+    /// Playback is stopped
+    StopState,
+    /// Content is buffering
+    BufferingState,
+    /// Invalid play status
+    InvalidPlayStatus,
+}
+
 /// Volume settings for the device
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Volume {
+    /// Target volume level (0-100)
     #[serde(rename = "targetvolume")]
     pub target_volume: u8,
+    /// Current actual volume level (0-100)
     #[serde(rename = "actualvolume")]
     pub actual_volume: u8,
+    /// Whether the device is muted
     #[serde(rename = "muteenabled")]
     pub mute_enabled: bool,
 }
@@ -39,18 +72,25 @@ pub struct VolumeUpdate {
 /// Content item representing a media source or track
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContentItem {
+    /// Source type (e.g., "TUNEIN", "SPOTIFY", "AUX")
     #[serde(rename = "@source")]
     pub source: String,
+    /// Content type (e.g., "stationurl", "tracklisturl")
     #[serde(rename = "@type", default)]
     pub item_type: Option<String>,
+    /// Content location/URL
     #[serde(rename = "@location", default)]
     pub location: Option<String>,
+    /// Account associated with the source
     #[serde(rename = "@sourceAccount", default)]
     pub source_account: Option<String>,
+    /// Whether this content can be saved as a preset
     #[serde(rename = "@isPresetable", default)]
     pub is_presetable: bool,
+    /// Display name of the content
     #[serde(rename = "itemName")]
     pub item_name: Option<String>,
+    /// URL of container artwork
     #[serde(rename = "containerArt")]
     pub container_art: Option<String>,
 }
@@ -58,28 +98,46 @@ pub struct ContentItem {
 /// Currently playing media information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NowPlaying {
+    /// Device ID (MAC address)
     #[serde(rename = "@deviceID")]
     pub device_id: String,
+    /// Current source (e.g., "TUNEIN", "SPOTIFY")
     #[serde(rename = "@source")]
     pub source: String,
+    /// Account associated with the source
     #[serde(rename = "@sourceAccount", default)]
     pub source_account: Option<String>,
+    /// Content item details
     #[serde(rename = "ContentItem")]
     pub content_item: ContentItem,
+    /// Track name
     pub track: Option<String>,
+    /// Artist name
     pub artist: Option<String>,
+    /// Album name
     pub album: Option<String>,
+    /// Station name (for radio)
     #[serde(rename = "stationName")]
     pub station_name: Option<String>,
+    /// Artwork URL
     pub art: Option<String>,
-    #[serde(rename = "@artImageStatus")]
-    pub art_status: Option<String>,
+    /// Status of the artwork
+    #[serde(rename = "artImageStatus")]
+    pub art_status: Option<ArtStatus>,
+    /// Current playback status
     #[serde(rename = "playStatus")]
-    pub play_status: String,
+    pub play_status: PlayStatus,
+    /// Type of stream (e.g., "RADIO_STREAMING", "TRACK_ONDEMAND")
     #[serde(rename = "streamType")]
     pub stream_type: Option<String>,
+    /// Whether content can be favorited
     #[serde(rename = "favoriteEnabled")]
     pub favorite_enabled: Option<String>,
+    /// Description of the content
+    pub description: Option<String>,
+    /// Station location (for radio)
+    #[serde(rename = "stationLocation")]
+    pub station_location: Option<String>,
 }
 
 /// Now playing update event from the device
@@ -122,10 +180,13 @@ pub struct RecentsUpdate {
 /// Network connection state information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConnectionState {
+    /// Connection state (e.g., "NETWORK_WIFI_CONNECTED")
     #[serde(rename = "@state")]
     pub state: String,
+    /// Whether the connection is up
     #[serde(rename = "@up")]
     pub up: bool,
+    /// Signal strength (e.g., "GOOD_SIGNAL", "MARGINAL_SIGNAL")
     #[serde(rename = "@signal")]
     pub signal: String,
 }
