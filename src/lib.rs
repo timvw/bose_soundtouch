@@ -187,10 +187,10 @@ impl BoseClient {
     pub fn parse_event(&self, text: &str) -> Option<SoundTouchEvent> {
         // First try to parse device info
         if text.contains("SoundTouchSdkInfo") {
-            return match quick_xml::de::from_str::<WebSocketDeviceInfo>(text) {
+            return match quick_xml::de::from_str::<SdkInfo>(text) {
                 Ok(info) => Some(SoundTouchEvent::DeviceInfo(info)),
                 Err(e) => {
-                    error!("Failed to parse DeviceInfo: {}", e);
+                    error!("Failed to parse SdkInfo: {}", e);
                     None
                 }
             };

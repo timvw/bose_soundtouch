@@ -8,7 +8,7 @@ pub struct BoseClient {
 
 // WebSocket types
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WebSocketDeviceInfo {
+pub struct SdkInfo {
     pub server_version: String,
     pub server_build: String,
 }
@@ -122,7 +122,7 @@ pub struct ConnectionState {
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum SoundTouchEvent {
-    DeviceInfo(WebSocketDeviceInfo),
+    DeviceInfo(SdkInfo),
     UserActivity(UserActivity),
     VolumeUpdated(VolumeUpdate),
     NowPlayingUpdated(NowPlayingUpdate),
