@@ -11,7 +11,7 @@ fn test_parse_now_playing() {
     let event = client.parse_event(SAMPLE_NOW_PLAYING).expect("Failed to parse now playing event");
     match event {
         SoundTouchEvent::NowPlayingUpdated(update) => {
-            assert_eq!(update.now_playing.source, "TUNEIN");
+            assert_eq!(update.now_playing.source, Source::Tunein);
             assert_eq!(update.now_playing.artist.as_deref(), Some("Teddy Swims - Bad Dreams"));
             assert_eq!(update.now_playing.track.as_deref(), Some("Qmusic België"));
         }

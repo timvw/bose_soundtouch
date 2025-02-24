@@ -69,12 +69,30 @@ pub struct VolumeUpdate {
     pub volume: Volume,
 }
 
+/// Source type for media content
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Source {
+    /// Internet radio (TuneIn)
+    Tunein,
+    /// Spotify streaming
+    Spotify,
+    /// Auxiliary input
+    Aux,
+    /// Bluetooth connection
+    Bluetooth,
+    /// Invalid/unknown source
+    InvalidSource,
+    /// Device in standby
+    Standby,
+}
+
 /// Content item representing a media source or track
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContentItem {
-    /// Source type (e.g., "TUNEIN", "SPOTIFY", "AUX")
+    /// Source type (e.g., TUNEIN, SPOTIFY, AUX)
     #[serde(rename = "@source")]
-    pub source: String,
+    pub source: Source,
     /// Content type (e.g., "stationurl", "tracklisturl")
     #[serde(rename = "@type", default)]
     pub item_type: Option<String>,
@@ -101,9 +119,9 @@ pub struct NowPlaying {
     /// Device ID (MAC address)
     #[serde(rename = "@deviceID")]
     pub device_id: String,
-    /// Current source (e.g., "TUNEIN", "SPOTIFY")
+    /// Current source
     #[serde(rename = "@source")]
-    pub source: String,
+    pub source: Source,
     /// Account associated with the source
     #[serde(rename = "@sourceAccount", default)]
     pub source_account: Option<String>,
