@@ -1,4 +1,4 @@
-#![allow(deprecated)]  // Silence all deprecation warnings in this crate
+#![allow(deprecated)] // Silence all deprecation warnings in this crate
 
 /*!
 An easy to use client for the Bose SoundTouch API.
@@ -9,7 +9,7 @@ Add `bose_soundtouch` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-bose_soundtouch = { version = "1" }
+bose_soundtouch = { version = "1", features = ["websocket"] }
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -20,7 +20,7 @@ use bose_soundtouch::BoseClient;
 
 #[tokio::main]
 async fn main() {
-    let client = BoseClient::new("192.168.1.143");
+    let client = BoseClient::new_from_string("192.168.1.143");
     let status = client.get_status().await.unwrap();
     println!("status: {:?}", status);
 }
@@ -29,31 +29,34 @@ async fn main() {
 ## WebSocket API Example
 
 ```rust,no_run
+# #[cfg(feature = "websocket")]
 use bose_soundtouch::{BoseClient, SoundTouchEvent};
+# #[cfg(feature = "websocket")]
 use tokio;
 
+# #[cfg(feature = "websocket")]
 #[tokio::main]
 async fn main() {
     // Create a new client
-    let mut client = BoseClient::new("bose-speaker.local");
-    
+    let mut client = BoseClient::new_from_string("bose-speaker.local");
+
     // Subscribe to events
     let mut rx = client.subscribe();
-    
+
     // Start listening in background
-    let mut ws_client = BoseClient::new(client.hostname());
-    let _ws_rx = ws_client.subscribe();
+    let mut ws_client = BoseClient::new_from_string(client.hostname());
+    let _rx = ws_client.subscribe();
     tokio::spawn(async move {
         if let Err(e) = ws_client.connect_and_listen().await {
             eprintln!("WebSocket error: {}", e);
         }
     });
-    
+
     // Handle events
     while let Ok(event) = rx.recv().await {
         match event {
             SoundTouchEvent::NowPlayingUpdated(update) => {
-                println!("Now playing: {} - {}", 
+                println!("Now playing: {} - {}",
                     update.now_playing.artist.unwrap_or_default(),
                     update.now_playing.track.unwrap_or_default());
             }
@@ -64,6 +67,9 @@ async fn main() {
         }
     }
 }
+
+# #[cfg(not(feature = "websocket"))]
+# fn main() {}
 ```
 
 */
@@ -81,19 +87,16 @@ use std::fmt;
 use std::fmt::Debug;
 
 #[cfg(feature = "logging")]
-use log::{info, error};
+use log::{error, info};
 
 #[cfg(feature = "websocket")]
 use {
+    futures_util::StreamExt,
     tokio::sync::broadcast,
     tokio_tungstenite::{
         connect_async,
-        tungstenite::{
-            protocol::Message,
-            client::IntoClientRequest,
-        },
+        tungstenite::{client::IntoClientRequest, protocol::Message},
     },
-    futures_util::StreamExt,
     url::Url,
 };
 
@@ -159,47 +162,56 @@ impl BoseClient {
         #[cfg(feature = "logging")]
         info!("Connecting to {}", url);
 
-        let mut request = url.into_client_request()
+        let mut request = url
+            .into_client_request()
             .map_err(|e| BoseError::ProtocolError(e.to_string()))?;
-            
+
         request.headers_mut().insert(
             "Sec-WebSocket-Protocol",
-            "gabbo".parse()
-                .map_err(|e| BoseError::ProtocolError(format!("Failed to parse protocol header: {}", e)))?
+            "gabbo".parse().map_err(|e| {
+                BoseError::ProtocolError(format!("Failed to parse protocol header: {}", e))
+            })?,
         );
 
         let (ws_stream, response) = connect_async(request)
             .await
             .map_err(BoseError::ConnectionError)?;
 
-        if response.headers().get("Sec-WebSocket-Protocol").map(|h| h.as_bytes()) != Some(b"gabbo") {
-            return Err(BoseError::ProtocolError("Server did not accept gabbo protocol".to_string()));
+        if response
+            .headers()
+            .get("Sec-WebSocket-Protocol")
+            .map(|h| h.as_bytes())
+            != Some(b"gabbo")
+        {
+            return Err(BoseError::ProtocolError(
+                "Server did not accept gabbo protocol".to_string(),
+            ));
         }
 
         #[cfg(feature = "logging")]
         info!("WebSocket connection established with gabbo protocol");
 
         let (_, mut read) = ws_stream.split();
-        let event_tx = self.event_tx.as_ref()
+        let event_tx = self
+            .event_tx
+            .as_ref()
             .ok_or_else(|| BoseError::ProtocolError("No event sender available".to_string()))?
             .clone();
 
         while let Some(message) = read.next().await {
             match message {
-                Ok(Message::Text(text)) => {
-                    match self.parse_event(&text) {
-                        Ok(event) => {
-                            if let Err(e) = event_tx.send(event) {
-                                #[cfg(feature = "logging")]
-                                error!("Failed to send event: {}", e);
-                            }
-                        }
-                        Err(e) => {
+                Ok(Message::Text(text)) => match self.parse_event(&text) {
+                    Ok(event) => {
+                        if let Err(e) = event_tx.send(event) {
                             #[cfg(feature = "logging")]
-                            error!("Failed to parse event: {}", e);
+                            error!("Failed to send event: {}", e);
                         }
                     }
-                }
+                    Err(e) => {
+                        #[cfg(feature = "logging")]
+                        error!("Failed to parse event: {}", e);
+                    }
+                },
                 Ok(Message::Close(_)) => {
                     #[cfg(feature = "logging")]
                     info!("WebSocket connection closed by server");
@@ -271,7 +283,9 @@ impl BoseClient {
             }
         } else {
             error!("Unhandled message type: {}", xml);
-            Err(BoseError::ProtocolError("Unhandled message type".to_string()))
+            Err(BoseError::ProtocolError(
+                "Unhandled message type".to_string(),
+            ))
         }
     }
 
@@ -832,7 +846,7 @@ impl BoseClient {
 /// Remote control key values supported by the SoundTouch API
 #[derive(Debug, Serialize, Deserialize, Copy, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[allow(deprecated)]  // Silence warnings for deprecated variants
+#[allow(deprecated)] // Silence warnings for deprecated variants
 pub enum KeyValue {
     Play = 0,
     Pause = 1,

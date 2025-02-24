@@ -21,11 +21,16 @@ mod tests {
     fn test_parse_now_playing() {
         let mut client = BoseClient::new_from_string("test");
         let _rx = client.subscribe();
-        let event = client.parse_event(SAMPLE_NOW_PLAYING).expect("Failed to parse now playing event");
+        let event = client
+            .parse_event(SAMPLE_NOW_PLAYING)
+            .expect("Failed to parse now playing event");
         match event {
             SoundTouchEvent::NowPlayingUpdated(update) => {
                 assert_eq!(update.now_playing.source, Source::Tunein);
-                assert_eq!(update.now_playing.artist.as_deref(), Some("Teddy Swims - Bad Dreams"));
+                assert_eq!(
+                    update.now_playing.artist.as_deref(),
+                    Some("Teddy Swims - Bad Dreams")
+                );
                 assert_eq!(update.now_playing.track.as_deref(), Some("Qmusic België"));
             }
             _ => panic!("Expected NowPlayingUpdated event"),
@@ -36,7 +41,9 @@ mod tests {
     fn test_parse_volume() {
         let mut client = BoseClient::new_from_string("test");
         let _rx = client.subscribe();
-        let event = client.parse_event(SAMPLE_VOLUME).expect("Failed to parse volume event");
+        let event = client
+            .parse_event(SAMPLE_VOLUME)
+            .expect("Failed to parse volume event");
         match event {
             SoundTouchEvent::VolumeUpdated(update) => {
                 assert_eq!(update.volume.target_volume, 5);
@@ -51,7 +58,9 @@ mod tests {
     fn test_parse_connection() {
         let mut client = BoseClient::new_from_string("test");
         let _rx = client.subscribe();
-        let event = client.parse_event(SAMPLE_CONNECTION).expect("Failed to parse connection event");
+        let event = client
+            .parse_event(SAMPLE_CONNECTION)
+            .expect("Failed to parse connection event");
         match event {
             SoundTouchEvent::ConnectionStateUpdated(state) => {
                 assert_eq!(state.state, ConnectionStateType::NetworkWifiConnected);
@@ -67,12 +76,17 @@ mod tests {
     fn test_parse_unknown_values() {
         let mut client = BoseClient::new_from_string("test");
         let _rx = client.subscribe();
-        
-        let event = client.parse_event(SAMPLE_UNKNOWN_SOURCE).expect("Failed to parse unknown source");
+
+        let event = client
+            .parse_event(SAMPLE_UNKNOWN_SOURCE)
+            .expect("Failed to parse unknown source");
         match event {
             SoundTouchEvent::NowPlayingUpdated(update) => {
                 assert!(matches!(update.now_playing.source, Source::Unknown));
-                assert!(matches!(update.now_playing.content_item.source, Source::Unknown));
+                assert!(matches!(
+                    update.now_playing.content_item.source,
+                    Source::Unknown
+                ));
             }
             _ => panic!("Expected NowPlayingUpdated event"),
         }
@@ -83,8 +97,11 @@ mod tests {
     fn test_reject_unknown_values() {
         let mut client = BoseClient::new_from_string("test");
         let _rx = client.subscribe();
-        
+
         let result = client.parse_event(SAMPLE_UNKNOWN_SOURCE);
-        assert!(result.is_err(), "Should fail to parse unknown source when unknown-variants feature is disabled");
+        assert!(
+            result.is_err(),
+            "Should fail to parse unknown source when unknown-variants feature is disabled"
+        );
     }
-} 
+}

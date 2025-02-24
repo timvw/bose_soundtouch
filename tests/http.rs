@@ -19,4 +19,4 @@ fn test_volume_serializer() {
     let volume = PostVolume::new(50);
     let xml = quick_xml::se::to_string(&volume).unwrap();
     assert_eq!(xml, r#"<volume>50</volume>"#);
-} 
+}

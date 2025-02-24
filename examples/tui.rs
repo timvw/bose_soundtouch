@@ -1,27 +1,32 @@
-use bose_soundtouch::{BoseClient, KeyValue, Preset};
-use crossterm::{
-    event::{self, Event, KeyCode},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
-use image::load_from_memory;
-use log;
-use ratatui::{
-    backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout},
-    style::{Color, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
-    Frame, Terminal,
-};
-use reqwest;
-use std::collections::HashMap;
-use std::{io, time::Duration};
-use tokio::time::sleep;
-use tracing_appender::rolling::{RollingFileAppender, Rotation};
-use tracing_subscriber::{fmt, prelude::*};
-use viuer::Config as ViuerConfig;
+// #![cfg(feature = "websocket")]
 
+// Only include imports when websocket feature is enabled
+#[cfg(feature = "websocket")]
+use {
+    bose_soundtouch::{BoseClient, KeyValue, Preset},
+    crossterm::{
+        event::{self, Event, KeyCode},
+        execute,
+        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    },
+    image::load_from_memory,
+    ratatui::{
+        backend::CrosstermBackend,
+        layout::{Constraint, Direction, Layout},
+        style::{Color, Style},
+        text::{Line, Span},
+        widgets::{Block, Borders, List, ListItem, Paragraph},
+        Frame, Terminal,
+    },
+    reqwest,
+    std::{collections::HashMap, io, time::Duration},
+    tokio::time::sleep,
+    tracing_appender::rolling::{RollingFileAppender, Rotation},
+    tracing_subscriber::{fmt, prelude::*},
+    viuer::Config as ViuerConfig,
+};
+
+#[cfg(feature = "websocket")]
 struct App {
     client: BoseClient,
     device_info: Option<String>,
@@ -35,10 +40,10 @@ struct App {
     last_drawn_preset_urls: HashMap<i32, String>,
 }
 
+#[cfg(feature = "websocket")]
 impl App {
     fn new(hostname: &str) -> Self {
-        let mut client = BoseClient::new_from_string(hostname);
-        let _rx = client.subscribe();
+        let client = BoseClient::new_from_string(hostname);
         Self {
             client,
             device_info: None,
@@ -174,13 +179,16 @@ impl App {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .margin(1)
-            .constraints([
-                Constraint::Length(5),  // Device info
-                Constraint::Length(20), // Now playing + artwork
-                Constraint::Length(3),  // Volume
-                Constraint::Length(8),  // Presets
-                Constraint::Length(8),  // Controls
-            ].as_ref())
+            .constraints(
+                [
+                    Constraint::Length(5),  // Device info
+                    Constraint::Length(20), // Now playing + artwork
+                    Constraint::Length(3),  // Volume
+                    Constraint::Length(8),  // Presets
+                    Constraint::Length(8),  // Controls
+                ]
+                .as_ref(),
+            )
             .split(f.area());
 
         // Device info
@@ -191,10 +199,7 @@ impl App {
         // Now playing with artwork
         let now_playing_chunks = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage(60),
-                Constraint::Percentage(40),
-            ].as_ref())
+            .constraints([Constraint::Percentage(60), Constraint::Percentage(40)].as_ref())
             .split(chunks[1]);
 
         let now_playing = Paragraph::new(self.now_playing.as_deref().unwrap_or("Loading..."))
@@ -202,8 +207,8 @@ impl App {
         f.render_widget(now_playing, now_playing_chunks[0]);
 
         // Artwork placeholder
-        let artwork = Paragraph::new("")
-            .block(Block::default().title("Artwork").borders(Borders::ALL));
+        let artwork =
+            Paragraph::new("").block(Block::default().title("Artwork").borders(Borders::ALL));
         f.render_widget(artwork, now_playing_chunks[1]);
 
         // Volume
@@ -212,24 +217,27 @@ impl App {
         f.render_widget(volume, chunks[2]);
 
         // Presets
-        let preset_items: Vec<ListItem> = self.presets
+        let preset_items: Vec<ListItem> = self
+            .presets
             .as_ref()
             .map(|presets| {
-                presets.iter()
+                presets
+                    .iter()
                     .map(|preset| {
-                        ListItem::new(vec![
-                            Line::from(vec![
-                                Span::raw(format!("#{} ", preset.id)),
-                                Span::styled(&preset.content_item.name, Style::default().fg(Color::Yellow)),
-                            ]),
-                        ])
+                        ListItem::new(vec![Line::from(vec![
+                            Span::raw(format!("#{} ", preset.id)),
+                            Span::styled(
+                                &preset.content_item.name,
+                                Style::default().fg(Color::Yellow),
+                            ),
+                        ])])
                     })
                     .collect()
             })
             .unwrap_or_else(|| vec![ListItem::new("Loading presets...")]);
 
-        let presets = List::new(preset_items)
-            .block(Block::default().title("Presets").borders(Borders::ALL));
+        let presets =
+            List::new(preset_items).block(Block::default().title("Presets").borders(Borders::ALL));
         f.render_widget(presets, chunks[3]);
 
         // Controls
@@ -247,8 +255,8 @@ impl App {
     }
 }
 
-#[allow(deprecated)]  // Allow use of deprecated new() method
 #[tokio::main]
+#[cfg(feature = "websocket")]
 async fn main() -> io::Result<()> {
     // Setup logging
     let file_appender = RollingFileAppender::new(Rotation::NEVER, "logs", "bose_soundtouch.log");
@@ -272,13 +280,12 @@ async fn main() -> io::Result<()> {
 
     // Create app and run it
     let mut app = App::new("192.168.1.143");
-    
+
     // Start WebSocket listener in background
-    let mut client = BoseClient::new_from_string(app.client.hostname());
-    let _rx = client.subscribe();
+    let client = BoseClient::new_from_string(app.client.hostname());
     tokio::spawn(async move {
         if let Err(e) = client.connect_and_listen().await {
-            log::error!("WebSocket error: {}", e);
+            tracing::error!("WebSocket error: {}", e);
         }
     });
 
@@ -297,6 +304,7 @@ async fn main() -> io::Result<()> {
 }
 
 // Return u16 for x coordinates and i16 for y coordinates
+#[cfg(feature = "websocket")]
 fn rect_to_screen_coords(rect: ratatui::layout::Rect) -> (u16, i16, u16, u16) {
     // Add 1 to account for borders
     let x = rect.x.saturating_add(1);
@@ -307,6 +315,7 @@ fn rect_to_screen_coords(rect: ratatui::layout::Rect) -> (u16, i16, u16, u16) {
     (x, y, width, height)
 }
 
+#[cfg(feature = "websocket")]
 async fn run_app(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     app: &mut App,
@@ -490,4 +499,11 @@ async fn run_app(
 
         sleep(Duration::from_millis(100)).await;
     }
+}
+
+// Fallback main for when websocket is disabled
+#[cfg(not(feature = "websocket"))]
+fn main() {
+    println!("This example requires the 'websocket' feature to be enabled.");
+    println!("Try running with: cargo run --example tui --features websocket");
 }

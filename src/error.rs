@@ -39,4 +39,4 @@ pub enum BoseError {
 }
 
 /// Result type for SoundTouch API operations
-pub type Result<T> = std::result::Result<T, BoseError>; 
+pub type Result<T> = std::result::Result<T, BoseError>;
