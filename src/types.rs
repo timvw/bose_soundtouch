@@ -84,6 +84,9 @@ pub enum Source {
     InvalidSource,
     #[serde(rename = "STANDBY")]
     Standby,
+    #[cfg(feature = "unknown-variants")]
+    #[serde(other)]
+    Unknown,
 }
 
 /// Network connection states
@@ -91,7 +94,9 @@ pub enum Source {
 pub enum ConnectionStateType {
     #[serde(rename = "NETWORK_WIFI_CONNECTED")]
     NetworkWifiConnected,
-    // Add others as seen in logs
+    #[cfg(feature = "unknown-variants")]
+    #[serde(other)]
+    Unknown,
 }
 
 /// Signal strength levels
@@ -101,6 +106,9 @@ pub enum SignalStrength {
     GoodSignal,
     #[serde(rename = "MARGINAL_SIGNAL")]
     MarginalSignal,
+    #[cfg(feature = "unknown-variants")]
+    #[serde(other)]
+    Unknown,
 }
 
 /// Media stream types
@@ -110,6 +118,9 @@ pub enum StreamType {
     RadioStreaming,
     #[serde(rename = "TRACK_ONDEMAND")]
     TrackOndemand,
+    #[cfg(feature = "unknown-variants")]
+    #[serde(other)]
+    Unknown,
 }
 
 /// Content item types
@@ -121,6 +132,9 @@ pub enum ContentItemType {
     TracklistUrl,
     #[serde(rename = "DO_NOT_RESUME")]
     DoNotResume,
+    #[cfg(feature = "unknown-variants")]
+    #[serde(other)]
+    Unknown,
 }
 
 /// Content item representing a media source or track

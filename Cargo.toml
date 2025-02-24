@@ -11,7 +11,8 @@ keywords = ["bose", "soundtouch", "client"]
 license = "Apache-2.0"
 
 [features]
-default = ["websocket", "logging"]
+default = []
+unknown-variants = []  # Enable handling of unknown enum variants
 websocket = ["tokio", "tokio-tungstenite", "futures-util", "url"]
 logging = ["log"]
 
