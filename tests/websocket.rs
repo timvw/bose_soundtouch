@@ -41,9 +41,9 @@ fn test_parse_connection() {
     let event = client.parse_event(SAMPLE_CONNECTION).expect("Failed to parse connection event");
     match event {
         SoundTouchEvent::ConnectionStateUpdated(state) => {
-            assert_eq!(state.state, "NETWORK_WIFI_CONNECTED");
+            assert_eq!(state.state, ConnectionStateType::NetworkWifiConnected);
             assert_eq!(state.up, true);
-            assert_eq!(state.signal, "GOOD_SIGNAL");
+            assert_eq!(state.signal, SignalStrength::GoodSignal);
         }
         _ => panic!("Expected ConnectionStateUpdated event"),
     }

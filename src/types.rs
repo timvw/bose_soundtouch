@@ -71,20 +71,56 @@ pub struct VolumeUpdate {
 
 /// Source type for media content
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Source {
-    /// Internet radio (TuneIn)
+    #[serde(rename = "TUNEIN")]
     Tunein,
-    /// Spotify streaming
+    #[serde(rename = "SPOTIFY")]
     Spotify,
-    /// Auxiliary input
+    #[serde(rename = "AUX")]
     Aux,
-    /// Bluetooth connection
+    #[serde(rename = "BLUETOOTH")]
     Bluetooth,
-    /// Invalid/unknown source
+    #[serde(rename = "INVALID_SOURCE")]
     InvalidSource,
-    /// Device in standby
+    #[serde(rename = "STANDBY")]
     Standby,
+}
+
+/// Network connection states
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ConnectionStateType {
+    #[serde(rename = "NETWORK_WIFI_CONNECTED")]
+    NetworkWifiConnected,
+    // Add others as seen in logs
+}
+
+/// Signal strength levels
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum SignalStrength {
+    #[serde(rename = "GOOD_SIGNAL")]
+    GoodSignal,
+    #[serde(rename = "MARGINAL_SIGNAL")]
+    MarginalSignal,
+}
+
+/// Media stream types
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum StreamType {
+    #[serde(rename = "RADIO_STREAMING")]
+    RadioStreaming,
+    #[serde(rename = "TRACK_ONDEMAND")]
+    TrackOndemand,
+}
+
+/// Content item types
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ContentItemType {
+    #[serde(rename = "stationurl")]
+    StationUrl,
+    #[serde(rename = "tracklisturl")]
+    TracklistUrl,
+    #[serde(rename = "DO_NOT_RESUME")]
+    DoNotResume,
 }
 
 /// Content item representing a media source or track
@@ -93,9 +129,9 @@ pub struct ContentItem {
     /// Source type (e.g., TUNEIN, SPOTIFY, AUX)
     #[serde(rename = "@source")]
     pub source: Source,
-    /// Content type (e.g., "stationurl", "tracklisturl")
+    /// Content type
     #[serde(rename = "@type", default)]
-    pub item_type: Option<String>,
+    pub item_type: Option<ContentItemType>,
     /// Content location/URL
     #[serde(rename = "@location", default)]
     pub location: Option<String>,
@@ -145,9 +181,9 @@ pub struct NowPlaying {
     /// Current playback status
     #[serde(rename = "playStatus")]
     pub play_status: PlayStatus,
-    /// Type of stream (e.g., "RADIO_STREAMING", "TRACK_ONDEMAND")
+    /// Type of stream
     #[serde(rename = "streamType")]
-    pub stream_type: Option<String>,
+    pub stream_type: Option<StreamType>,
     /// Whether content can be favorited
     #[serde(rename = "favoriteEnabled")]
     pub favorite_enabled: Option<String>,
@@ -198,15 +234,15 @@ pub struct RecentsUpdate {
 /// Network connection state information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConnectionState {
-    /// Connection state (e.g., "NETWORK_WIFI_CONNECTED")
+    /// Connection state
     #[serde(rename = "@state")]
-    pub state: String,
+    pub state: ConnectionStateType,
     /// Whether the connection is up
     #[serde(rename = "@up")]
     pub up: bool,
-    /// Signal strength (e.g., "GOOD_SIGNAL", "MARGINAL_SIGNAL")
+    /// Signal strength
     #[serde(rename = "@signal")]
-    pub signal: String,
+    pub signal: SignalStrength,
 }
 
 /// Events that can be received from the device's WebSocket API
