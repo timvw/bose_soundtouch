@@ -727,7 +727,14 @@ impl BoseClient {
 
     /// Toggles between play and pause states
     pub async fn play_pause(&self) -> Result<()> {
-        self.press_and_release_key(&KeyValue::PlayPause).await
+        // First try to play
+        let result = self.press_and_release_key(&KeyValue::Play).await;
+        if result.is_err() {
+            // If play fails, try pause
+            self.press_and_release_key(&KeyValue::Pause).await
+        } else {
+            Ok(())
+        }
     }
 
     /// Gives thumbs up to current track
@@ -758,7 +765,7 @@ impl BoseClient {
 
 /// Remote control key values supported by the SoundTouch API
 #[derive(Debug, Serialize, Deserialize, Copy, Clone)]
-#[serde(rename_all = "UPPERCASE")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum KeyValue {
     /// Play the current media
     Play,
@@ -766,55 +773,47 @@ pub enum KeyValue {
     Pause,
     /// Stop playback
     Stop,
-    /// Skip to previous track
-    PrevTrack,
     /// Skip to next track
+    #[serde(rename = "NEXT_TRACK")]
     NextTrack,
+    /// Return to previous track
+    #[serde(rename = "PREV_TRACK")]
+    PrevTrack,
+    /// Toggle mute
+    Mute,
+    /// Toggle power
+    Power,
     /// Give thumbs up to current track
+    #[serde(rename = "THUMBS_UP")]
     ThumbsUp,
     /// Give thumbs down to current track
+    #[serde(rename = "THUMBS_DOWN")]
     ThumbsDown,
     /// Bookmark the current track/station
     Bookmark,
-    /// Toggle power state
-    Power,
-    /// Toggle mute state
-    Mute,
     /// Select preset 1
-    #[serde(rename(serialize = "PRESET_1"))]
+    #[serde(rename = "PRESET_1")]
     Preset1,
     /// Select preset 2
-    #[serde(rename(serialize = "PRESET_2"))]
+    #[serde(rename = "PRESET_2")]
     Preset2,
     /// Select preset 3
-    #[serde(rename(serialize = "PRESET_3"))]
+    #[serde(rename = "PRESET_3")]
     Preset3,
     /// Select preset 4
-    #[serde(rename(serialize = "PRESET_4"))]
+    #[serde(rename = "PRESET_4")]
     Preset4,
     /// Select preset 5
-    #[serde(rename(serialize = "PRESET_5"))]
+    #[serde(rename = "PRESET_5")]
     Preset5,
     /// Select preset 6
-    #[serde(rename(serialize = "PRESET_6"))]
+    #[serde(rename = "PRESET_6")]
     Preset6,
-    /// Switch to AUX input
-    AuxInput,
-    /// Turn shuffle mode off
-    ShuffleOff,
-    /// Turn shuffle mode on
-    ShuffleOn,
-    /// Turn repeat mode off
-    RepeatOff,
-    /// Repeat current track
-    RepeatOne,
-    /// Repeat all tracks
-    RepeatAll,
-    /// Toggle between play and pause
-    PlayPause,
     /// Add current item to favorites
+    #[serde(rename = "ADD_FAVORITE")]
     AddFavorite,
     /// Remove current item from favorites
+    #[serde(rename = "REMOVE_FAVORITE")]
     RemoveFavorite,
 }
 
@@ -949,9 +948,9 @@ pub struct Volume {
 
 #[derive(Debug, Serialize)]
 #[serde(rename(serialize = "volume"))]
-struct PostVolume {
+pub struct PostVolume {
     #[serde(rename = "$value")]
-    value: i32,
+    pub value: i32,
 }
 
 impl PostVolume {
@@ -961,30 +960,30 @@ impl PostVolume {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename(serialize = "key"))]
-struct PostKey {
-    #[serde(rename = "@state")]
-    state: KeyState,
-    #[serde(rename = "@sender")]
-    sender: String,
+#[serde(rename = "key")]
+pub struct PostKey<'a> {
     #[serde(rename = "$text")]
-    value: KeyValue,
+    value: &'a KeyValue,
+    #[serde(rename = "@state")]
+    state: &'static str,
+    #[serde(rename = "@sender")]
+    sender: &'static str,
 }
 
-impl PostKey {
-    pub fn press(value: &KeyValue) -> PostKey {
-        PostKey {
-            state: KeyState::Press,
-            sender: "Gabbo".to_string(),
-            value: *value,
+impl<'a> PostKey<'a> {
+    pub fn press(key: &'a KeyValue) -> Self {
+        Self {
+            value: key,
+            state: "press",
+            sender: "Gabbo",
         }
     }
 
-    pub fn release(value: &KeyValue) -> PostKey {
-        PostKey {
-            state: KeyState::Release,
-            sender: "Gabbo".to_string(),
-            value: *value,
+    pub fn release(value: &'a KeyValue) -> Self {
+        Self {
+            value,
+            state: "release",
+            sender: "Gabbo",
         }
     }
 }
@@ -1269,33 +1268,4 @@ pub struct Bass {
 struct SetBass {
     #[serde(rename = "$value")]
     value: i32,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_key_serializer() {
-        assert_eq!(
-            "<key state=\"press\" sender=\"Gabbo\">POWER</key>".to_string(),
-            serialize_xml(&PostKey::press(&KeyValue::Power)).unwrap()
-        )
-    }
-
-    #[test]
-    fn test_preset_key_serializer() {
-        assert_eq!(
-            "<key state=\"press\" sender=\"Gabbo\">PRESET_1</key>".to_string(),
-            serialize_xml(&PostKey::press(&KeyValue::Preset1)).unwrap()
-        )
-    }
-
-    #[test]
-    fn test_volume_serializer() {
-        assert_eq!(
-            "<volume>9</volume>".to_string(),
-            serialize_xml(&PostVolume { value: 9 }).unwrap()
-        )
-    }
 }

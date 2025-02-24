@@ -7,7 +7,7 @@ const SAMPLE_CONNECTION: &str = include_str!("samples/connection.xml");
 #[test]
 fn test_parse_now_playing() {
     let mut client = BoseClient::new("test");
-    let _rx = client.subscribe(); // Need to initialize event channel
+    let _rx = client.subscribe();
     let event = client.parse_event(SAMPLE_NOW_PLAYING).expect("Failed to parse now playing event");
     match event {
         SoundTouchEvent::NowPlayingUpdated(update) => {
