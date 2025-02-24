@@ -11,7 +11,7 @@ bose_soundtouch = { version = "1" }
 tokio = { version = "1", features = ["full"] }
 ```
 
-## Getting the status of your speaker
+## HTTP API Example
 
 ```rust
 use bose_soundtouch::BoseClient;
@@ -24,6 +24,44 @@ async fn main() {
 }
 ```
 
+## WebSocket API Example
+
+```rust
+use bose_soundtouch::{SoundTouchWebSocket, SoundTouchEvent};
+use tokio;
+
+#[tokio::main]
+async fn main() {
+    // Create a new WebSocket client
+    let ws = SoundTouchWebSocket::new("bose-speaker.local".to_string());
+    
+    // Subscribe to events
+    let mut rx = ws.subscribe();
+    
+    // Start listening in background
+    tokio::spawn(async move {
+        if let Err(e) = ws.connect_and_listen().await {
+            eprintln!("WebSocket error: {}", e);
+        }
+    });
+    
+    // Handle events
+    while let Ok(event) = rx.recv().await {
+        match event {
+            SoundTouchEvent::NowPlayingUpdated(update) => {
+                println!("Now playing: {} - {}", 
+                    update.now_playing.artist.unwrap_or_default(),
+                    update.now_playing.track.unwrap_or_default());
+            }
+            SoundTouchEvent::VolumeUpdated(vol) => {
+                println!("Volume: {}", vol.volume.actual_volume);
+            }
+            _ => {}
+        }
+    }
+}
+```
+
 */
 
 use reqwest::{Client, IntoUrl};
@@ -32,6 +70,19 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fmt::Debug;
 use thiserror::Error;
+
+// Add new module declarations
+mod error;
+mod types;
+mod websocket;
+
+// Add new exports
+pub use websocket::{SoundTouchWebSocket, SoundTouchEvent};
+
+// Add WebSocket dependencies to existing uses
+use tokio_tungstenite;
+use futures_util;
+use tokio::sync::broadcast;
 
 /// Client for interacting with Bose SoundTouch devices
 ///

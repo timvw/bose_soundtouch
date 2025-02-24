@@ -1,25 +1,25 @@
 [package]
 name = "bose_soundtouch"
-version = "2.0.0"
+version = "1.0.0"
 edition = "2021"
-description = "Client library for the Bose SoundTouch API"
+description = "Rust client for the Bose SoundTouch API"
 homepage = "https://github.com/timvw/bose_soundtouch"
-repository = "https://github.com/timvw/bose_soundtouch"
+repository = "https://github.com/yourusername/bose_soundtouch"
 readme = "README.md"
 authors = ["Tim Van Wassenhove <tim@timvw.be>"]
 keywords = ["bose", "soundtouch", "client"]
-license = "Apache-2.0"
+license = "MIT OR Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-thiserror = { version = "1.0.59" }
-quick-xml = { version = "0.36", features = ["serialize"] }
-reqwest = { version = "0.12.4", features = ["blocking"] }
-serde = { version = "1.0.200", features = ["derive"] }
+thiserror = "1.0"
+quick-xml = { version = "0.31", features = ["serialize"] }
+reqwest = { version = "0.11", features = ["blocking"] }
+serde = { version = "1.0", features = ["derive"] }
 ratatui = "0.29.0"
 crossterm = "0.28.0"
-tokio = { version = "1.0", features = ["full"] }
+tokio = { version = "1.36", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
@@ -27,9 +27,15 @@ viuer = "0.6"
 image = { version = "0.24", features = ["jpeg", "png"] }
 imageproc = "0.25"
 rusttype = "0.9"
+tokio-tungstenite = "0.21"
+futures-util = "0.3"
+url = "2.5"
+log = "0.4"
+anyhow = "1.0"
 
 [dev-dependencies]
 anyhow = "1.0.82"
 clap = { version = "4.5.4", features = ["derive", "env"] }
-tokio = { version = "1.37.0", features = ["full", "tracing"] }
+tokio-test = "0.4"
+pretty_assertions = "1.4"
 
