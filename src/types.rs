@@ -35,18 +35,22 @@ pub enum ArtStatus {
 
 /// Playback status of the device
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PlayStatus {
     /// Content is playing
+    #[serde(rename = "PLAY_STATE")]
     PlayState,
     /// Playback is paused
+    #[serde(rename = "PAUSE_STATE")]
     PauseState,
     /// Playback is stopped
+    #[serde(rename = "STOP_STATE")]
     StopState,
     /// Content is buffering
+    #[serde(rename = "BUFFERING_STATE")]
     BufferingState,
     /// Invalid play status
-    InvalidPlayStatus,
+    #[serde(rename = "INVALID_PLAY_STATUS")]
+    Invalid,
 }
 
 /// Volume settings for the device

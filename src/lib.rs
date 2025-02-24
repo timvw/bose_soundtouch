@@ -77,17 +77,23 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fmt::Debug;
-use tokio::sync::broadcast;
-use tokio_tungstenite::{
-    connect_async,
-    tungstenite::{
-        protocol::Message,
-        client::IntoClientRequest,
-    },
-};
-use futures_util::StreamExt;
-use url::Url;
+
+#[cfg(feature = "logging")]
 use log::{info, error};
+
+#[cfg(feature = "websocket")]
+use {
+    tokio::sync::broadcast,
+    tokio_tungstenite::{
+        connect_async,
+        tungstenite::{
+            protocol::Message,
+            client::IntoClientRequest,
+        },
+    },
+    futures_util::StreamExt,
+    url::Url,
+};
 
 /// Client for interacting with Bose SoundTouch devices
 ///
@@ -96,6 +102,7 @@ use log::{info, error};
 #[derive(Serialize, Deserialize, Debug)]
 pub struct BoseClient {
     hostname: String,
+    #[cfg(feature = "websocket")]
     #[serde(skip)]
     event_tx: Option<broadcast::Sender<SoundTouchEvent>>,
 }
@@ -108,6 +115,7 @@ impl BoseClient {
     pub fn new<S: Into<String>>(hostname: S) -> Self {
         Self {
             hostname: hostname.into(),
+            #[cfg(feature = "websocket")]
             event_tx: None,
         }
     }
@@ -118,6 +126,7 @@ impl BoseClient {
     }
 
     /// Subscribe to WebSocket events from the device
+    #[cfg(feature = "websocket")]
     pub fn subscribe(&mut self) -> broadcast::Receiver<SoundTouchEvent> {
         if self.event_tx.is_none() {
             let (tx, _) = broadcast::channel(100);
@@ -127,10 +136,12 @@ impl BoseClient {
     }
 
     /// Connect to the WebSocket and start listening for events
+    #[cfg(feature = "websocket")]
     pub async fn connect_and_listen(&self) -> Result<()> {
         let url_str = format!("ws://{}:8080", self.hostname);
         let url = Url::parse(&url_str).map_err(BoseError::UrlParseError)?;
 
+        #[cfg(feature = "logging")]
         info!("Connecting to {}", url);
 
         let mut request = url.into_client_request()
@@ -150,6 +161,7 @@ impl BoseClient {
             return Err(BoseError::ProtocolError("Server did not accept gabbo protocol".to_string()));
         }
 
+        #[cfg(feature = "logging")]
         info!("WebSocket connection established with gabbo protocol");
 
         let (_, mut read) = ws_stream.split();
@@ -160,20 +172,30 @@ impl BoseClient {
         while let Some(message) = read.next().await {
             match message {
                 Ok(Message::Text(text)) => {
-                    if let Some(event) = self.parse_event(&text) {
-                        if let Err(e) = event_tx.send(event) {
-                            error!("Failed to send event: {}", e);
+                    match self.parse_event(&text) {
+                        Ok(event) => {
+                            if let Err(e) = event_tx.send(event) {
+                                #[cfg(feature = "logging")]
+                                error!("Failed to send event: {}", e);
+                            }
+                        }
+                        Err(e) => {
+                            #[cfg(feature = "logging")]
+                            error!("Failed to parse event: {}", e);
                         }
                     }
                 }
                 Ok(Message::Close(_)) => {
+                    #[cfg(feature = "logging")]
                     info!("WebSocket connection closed by server");
                     if let Err(e) = event_tx.send(SoundTouchEvent::Disconnected) {
+                        #[cfg(feature = "logging")]
                         error!("Failed to send disconnect event: {}", e);
                     }
                     break;
                 }
                 Err(e) => {
+                    #[cfg(feature = "logging")]
                     error!("WebSocket error: {}", e);
                     break;
                 }
@@ -184,55 +206,57 @@ impl BoseClient {
         Ok(())
     }
 
-    pub fn parse_event(&self, text: &str) -> Option<SoundTouchEvent> {
+    /// Parse a WebSocket event from XML
+    #[cfg(feature = "websocket")]
+    pub fn parse_event(&self, xml: &str) -> Result<SoundTouchEvent> {
         // First try to parse device info
-        if text.contains("SoundTouchSdkInfo") {
-            return match quick_xml::de::from_str::<SdkInfo>(text) {
-                Ok(info) => Some(SoundTouchEvent::DeviceInfo(info)),
+        if xml.contains("SoundTouchSdkInfo") {
+            return match quick_xml::de::from_str::<SdkInfo>(xml) {
+                Ok(info) => Ok(SoundTouchEvent::DeviceInfo(info)),
                 Err(e) => {
                     error!("Failed to parse SdkInfo: {}", e);
-                    None
+                    Err(BoseError::XmlError(e))
                 }
             };
         }
 
         // Then try user activity
-        if text.contains("userActivityUpdate") {
-            return match quick_xml::de::from_str::<UserActivity>(text) {
-                Ok(activity) => Some(SoundTouchEvent::UserActivity(activity)),
+        if xml.contains("userActivityUpdate") {
+            return match quick_xml::de::from_str::<UserActivity>(xml) {
+                Ok(activity) => Ok(SoundTouchEvent::UserActivity(activity)),
                 Err(e) => {
                     error!("Failed to parse UserActivity: {}", e);
-                    None
+                    Err(BoseError::XmlError(e))
                 }
             };
         }
 
         // Try to parse updates wrapper
-        if text.contains("<updates") {
-            match quick_xml::de::from_str::<Updates>(text) {
+        if xml.contains("<updates") {
+            match quick_xml::de::from_str::<Updates>(xml) {
                 Ok(updates) => {
                     // Convert the update to an event
                     if let Some(volume) = updates.volume_updated {
-                        Some(SoundTouchEvent::VolumeUpdated(volume))
+                        Ok(SoundTouchEvent::VolumeUpdated(volume))
                     } else if let Some(now_playing) = updates.now_playing_updated {
-                        Some(SoundTouchEvent::NowPlayingUpdated(now_playing))
+                        Ok(SoundTouchEvent::NowPlayingUpdated(now_playing))
                     } else if let Some(recents) = updates.recents_updated {
-                        Some(SoundTouchEvent::RecentsUpdated(recents))
+                        Ok(SoundTouchEvent::RecentsUpdated(recents))
                     } else if let Some(connection) = updates.connection_state_updated {
-                        Some(SoundTouchEvent::ConnectionStateUpdated(connection))
+                        Ok(SoundTouchEvent::ConnectionStateUpdated(connection))
                     } else {
-                        error!("Unknown update type in: {}", text);
-                        None
+                        error!("Unknown update type in: {}", xml);
+                        Err(BoseError::ProtocolError("Unknown update type".to_string()))
                     }
                 }
                 Err(e) => {
-                    error!("Failed to parse Updates: {} from text: {}", e, text);
-                    None
+                    error!("Failed to parse Updates: {} from text: {}", e, xml);
+                    Err(BoseError::XmlError(e))
                 }
             }
         } else {
-            error!("Unhandled message type: {}", text);
-            None
+            error!("Unhandled message type: {}", xml);
+            Err(BoseError::ProtocolError("Unhandled message type".to_string()))
         }
     }
 
@@ -258,8 +282,8 @@ impl BoseClient {
 
     /// Gets information about the device
     pub async fn get_info(&self) -> Result<DeviceInfo> {
-        let url = format!("http://{}:8090/info", &self.hostname);
-        get_xml(url).await
+        let url = "/info".to_string();
+        self.get_xml(&url).await
     }
 
     /// Sets the device name
@@ -305,14 +329,14 @@ impl BoseClient {
 
     /// Gets the current playback status
     pub async fn get_status(&self) -> Result<NowPlaying> {
-        let url = format!("http://{}:8090/now_playing", &self.hostname);
-        get_xml(url).await
+        let url = "/now_playing".to_string();
+        self.get_xml(&url).await
     }
 
     /// Gets the current volume settings
     pub async fn get_volume(&self) -> Result<Volume> {
-        let url = format!("http://{}:8090/volume", &self.hostname);
-        get_xml(url).await
+        let url = "/volume".to_string();
+        self.get_xml(&url).await
     }
 
     /// Sets the volume level
@@ -327,8 +351,8 @@ impl BoseClient {
 
     /// Gets the list of presets
     pub async fn get_presets(&self) -> Result<Presets> {
-        let url = format!("http://{}:8090/presets", &self.hostname);
-        get_xml(url).await
+        let url = "/presets".to_string();
+        self.get_xml(&url).await
     }
 
     /// Selects a preset
@@ -355,8 +379,8 @@ impl BoseClient {
 
     /// Gets the list of available sources
     pub async fn get_sources(&self) -> Result<Sources> {
-        let url = format!("http://{}:8090/sources", &self.hostname);
-        get_xml(url).await
+        let url = "/sources".to_string();
+        self.get_xml(&url).await
     }
 
     /// Selects a source for playback
@@ -441,8 +465,8 @@ impl BoseClient {
     /// # }
     /// ```
     pub async fn get_zone(&self) -> Result<Zone> {
-        let url = format!("http://{}:8090/getZone", &self.hostname);
-        get_xml(url).await
+        let url = "/getZone".to_string();
+        self.get_xml(&url).await
     }
 
     /// Creates or updates a multi-room zone
@@ -615,8 +639,8 @@ impl BoseClient {
     /// # }
     /// ```
     pub async fn get_bass_capabilities(&self) -> Result<BassCapabilities> {
-        let url = format!("http://{}:8090/bassCapabilities", &self.hostname);
-        get_xml(url).await
+        let url = "/bassCapabilities".to_string();
+        self.get_xml(&url).await
     }
 
     /// Gets the current bass settings
@@ -634,8 +658,8 @@ impl BoseClient {
     /// # }
     /// ```
     pub async fn get_bass(&self) -> Result<Bass> {
-        let url = format!("http://{}:8090/bass", &self.hostname);
-        get_xml(url).await
+        let url = "/bass".to_string();
+        self.get_xml(&url).await
     }
 
     /// Sets the bass level
@@ -760,6 +784,33 @@ impl BoseClient {
     /// Removes current item from favorites
     pub async fn remove_favorite(&self) -> Result<()> {
         self.press_and_release_key(&KeyValue::RemoveFavorite).await
+    }
+
+    #[cfg(feature = "logging")]
+    async fn get_xml<T: DeserializeOwned>(&self, path: &str) -> Result<T> {
+        let url = format!("http://{}:8090{}", self.hostname, path);
+        let response = Client::new()
+            .get(&url)
+            .send()
+            .await
+            .map_err(BoseError::HttpClientError)?;
+        let body = response.text().await?;
+        log::debug!("Response from {}: {}", url, body);
+        let value: T = quick_xml::de::from_str(&body).map_err(BoseError::XmlError)?;
+        Ok(value)
+    }
+
+    #[cfg(not(feature = "logging"))]
+    async fn get_xml<T: DeserializeOwned>(&self, path: &str) -> Result<T> {
+        let url = format!("http://{}:8090{}", self.hostname, path);
+        let response = Client::new()
+            .get(&url)
+            .send()
+            .await
+            .map_err(BoseError::HttpClientError)?;
+        let body = response.text().await?;
+        let value: T = quick_xml::de::from_str(&body).map_err(BoseError::XmlError)?;
+        Ok(value)
     }
 }
 
@@ -1067,19 +1118,6 @@ async fn post_xml<U: IntoUrl + Debug + Clone, T: ?Sized + Serialize + Debug>(
         .await
         .map_err(BoseError::HttpClientError)?;
     Ok(())
-}
-
-async fn get_xml<U: IntoUrl + Debug + Clone, T: DeserializeOwned>(url: U) -> Result<T> {
-    let client = Client::new();
-    let response = client
-        .get(url.clone())
-        .send()
-        .await
-        .map_err(BoseError::HttpClientError)?;
-    let body = response.text().await?;
-    log::debug!("Response from {}: {}", url.as_str(), body);
-    let value: T = quick_xml::de::from_str(&body).map_err(BoseError::XmlError)?;
-    Ok(value)
 }
 
 /// Information about the device

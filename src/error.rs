@@ -18,18 +18,22 @@ pub enum BoseError {
     HttpClientError(#[from] reqwest::Error),
 
     /// Failed to establish WebSocket connection
+    #[cfg(feature = "websocket")]
     #[error("Failed to connect to WebSocket: {0}")]
     ConnectionError(#[from] tokio_tungstenite::tungstenite::Error),
 
     /// Failed to parse WebSocket URL
+    #[cfg(feature = "websocket")]
     #[error("Failed to parse URL: {0}")]
     UrlParseError(#[from] url::ParseError),
 
     /// WebSocket protocol error occurred
+    #[cfg(feature = "websocket")]
     #[error("Protocol error: {0}")]
     ProtocolError(String),
 
     /// WebSocket connection was closed
+    #[cfg(feature = "websocket")]
     #[error("WebSocket closed")]
     WebSocketClosed,
 }
