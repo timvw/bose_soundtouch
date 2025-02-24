@@ -2,7 +2,7 @@
 name = "bose_soundtouch"
 version = "2.0.0"
 edition = "2021"
-description = "Client library for the Bose SoundTouch API"
+description = "Rust client for the Bose SoundTouch API"
 homepage = "https://github.com/timvw/bose_soundtouch"
 repository = "https://github.com/timvw/bose_soundtouch"
 readme = "README.md"
@@ -10,26 +10,36 @@ authors = ["Tim Van Wassenhove <tim@timvw.be>"]
 keywords = ["bose", "soundtouch", "client"]
 license = "Apache-2.0"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = []
+unknown-variants = []  # Enable handling of unknown enum variants
+websocket = ["tokio", "tokio-tungstenite", "futures-util", "url"]
+logging = ["log"]
 
 [dependencies]
-thiserror = { version = "1.0.59" }
-quick-xml = { version = "0.36", features = ["serialize"] }
-reqwest = { version = "0.12.4", features = ["blocking"] }
-serde = { version = "1.0.200", features = ["derive"] }
+thiserror = "1.0"
+quick-xml = { version = "0.31", features = ["serialize"] }
+serde = { version = "1.0", features = ["derive"] }
+reqwest = { version = "0.11" }
+tokio = { version = "1.36", features = ["sync"], optional = true }
+tokio-tungstenite = { version = "0.21", optional = true }
+futures-util = { version = "0.3", optional = true }
+url = { version = "2.5", optional = true }
+log = { version = "0.4", optional = true }
+
+[dev-dependencies]
+tokio = { version = "1.36", features = ["rt", "macros", "rt-multi-thread", "test-util"] }
+tokio-test = "0.4"
+pretty_assertions = "1.4"
+anyhow = "1.0"
 ratatui = "0.29.0"
 crossterm = "0.28.0"
-tokio = { version = "1.0", features = ["full"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-tracing-appender = "0.2"
 viuer = "0.6"
 image = { version = "0.24", features = ["jpeg", "png"] }
 imageproc = "0.25"
 rusttype = "0.9"
-
-[dev-dependencies]
-anyhow = "1.0.82"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
 clap = { version = "4.5.4", features = ["derive", "env"] }
-tokio = { version = "1.37.0", features = ["full", "tracing"] }
 

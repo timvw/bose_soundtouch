@@ -11,9 +11,9 @@ bose_soundtouch = { version = "1" }
 tokio = { version = "1", features = ["full"] }
 ```
 
-## Getting the status of your speaker
+## HTTP API Example
 
-```rust
+```rust,no_run
 use bose_soundtouch::BoseClient;
 
 #[tokio::main]
@@ -24,14 +24,76 @@ async fn main() {
 }
 ```
 
+## WebSocket API Example
+
+```rust,no_run
+use bose_soundtouch::{BoseClient, SoundTouchEvent};
+use tokio;
+
+#[tokio::main]
+async fn main() {
+    // Create a new client
+    let mut client = BoseClient::new("bose-speaker.local");
+    
+    // Subscribe to events
+    let mut rx = client.subscribe();
+    
+    // Start listening in background
+    let mut ws_client = BoseClient::new(client.hostname());
+    let _ws_rx = ws_client.subscribe();
+    tokio::spawn(async move {
+        if let Err(e) = ws_client.connect_and_listen().await {
+            eprintln!("WebSocket error: {}", e);
+        }
+    });
+    
+    // Handle events
+    while let Ok(event) = rx.recv().await {
+        match event {
+            SoundTouchEvent::NowPlayingUpdated(update) => {
+                println!("Now playing: {} - {}", 
+                    update.now_playing.artist.unwrap_or_default(),
+                    update.now_playing.track.unwrap_or_default());
+            }
+            SoundTouchEvent::VolumeUpdated(vol) => {
+                println!("Volume: {}", vol.volume.actual_volume);
+            }
+            _ => {}
+        }
+    }
+}
+```
+
 */
+
+mod error;
+mod types;
+
+pub use error::{BoseError, Result};
+pub use types::*;
 
 use reqwest::{Client, IntoUrl};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fmt::Debug;
-use thiserror::Error;
+
+#[cfg(feature = "logging")]
+use log::{info, error};
+
+#[cfg(feature = "websocket")]
+use {
+    tokio::sync::broadcast,
+    tokio_tungstenite::{
+        connect_async,
+        tungstenite::{
+            protocol::Message,
+            client::IntoClientRequest,
+        },
+    },
+    futures_util::StreamExt,
+    url::Url,
+};
 
 /// Client for interacting with Bose SoundTouch devices
 ///
@@ -40,32 +102,161 @@ use thiserror::Error;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct BoseClient {
     hostname: String,
+    #[cfg(feature = "websocket")]
+    #[serde(skip)]
+    event_tx: Option<broadcast::Sender<SoundTouchEvent>>,
 }
-
-/// Errors that can occur when interacting with the Bose SoundTouch API
-#[derive(Error, Debug)]
-pub enum BoseClientError {
-    /// Invalid preset number was specified (valid range: 1-6)
-    #[error("Invalid Preset")]
-    InvalidPreset(String),
-    /// Failed to serialize or deserialize XML data
-    #[error("Failed to (de)serialize from XML")]
-    XmlError(#[from] quick_xml::DeError),
-    /// HTTP client encountered an error
-    #[error("Http client issue")]
-    HttpClientError(#[from] reqwest::Error),
-}
-
-pub type Result<T> = std::result::Result<T, BoseClientError>;
 
 impl BoseClient {
     /// Creates a new BoseClient instance
     ///
     /// # Arguments
     /// * `hostname` - IP address or hostname of the SoundTouch device
-    pub fn new(hostname: &str) -> BoseClient {
-        BoseClient {
-            hostname: String::from(hostname),
+    pub fn new<S: Into<String>>(hostname: S) -> Self {
+        Self {
+            hostname: hostname.into(),
+            #[cfg(feature = "websocket")]
+            event_tx: None,
+        }
+    }
+
+    /// Get the hostname of the device
+    pub fn hostname(&self) -> &str {
+        &self.hostname
+    }
+
+    /// Subscribe to WebSocket events from the device
+    #[cfg(feature = "websocket")]
+    pub fn subscribe(&mut self) -> broadcast::Receiver<SoundTouchEvent> {
+        if self.event_tx.is_none() {
+            let (tx, _) = broadcast::channel(100);
+            self.event_tx = Some(tx);
+        }
+        self.event_tx.as_ref().unwrap().subscribe()
+    }
+
+    /// Connect to the WebSocket and start listening for events
+    #[cfg(feature = "websocket")]
+    pub async fn connect_and_listen(&self) -> Result<()> {
+        let url_str = format!("ws://{}:8080", self.hostname);
+        let url = Url::parse(&url_str).map_err(BoseError::UrlParseError)?;
+
+        #[cfg(feature = "logging")]
+        info!("Connecting to {}", url);
+
+        let mut request = url.into_client_request()
+            .map_err(|e| BoseError::ProtocolError(e.to_string()))?;
+            
+        request.headers_mut().insert(
+            "Sec-WebSocket-Protocol",
+            "gabbo".parse()
+                .map_err(|e| BoseError::ProtocolError(format!("Failed to parse protocol header: {}", e)))?
+        );
+
+        let (ws_stream, response) = connect_async(request)
+            .await
+            .map_err(BoseError::ConnectionError)?;
+
+        if response.headers().get("Sec-WebSocket-Protocol").map(|h| h.as_bytes()) != Some(b"gabbo") {
+            return Err(BoseError::ProtocolError("Server did not accept gabbo protocol".to_string()));
+        }
+
+        #[cfg(feature = "logging")]
+        info!("WebSocket connection established with gabbo protocol");
+
+        let (_, mut read) = ws_stream.split();
+        let event_tx = self.event_tx.as_ref()
+            .ok_or_else(|| BoseError::ProtocolError("No event sender available".to_string()))?
+            .clone();
+
+        while let Some(message) = read.next().await {
+            match message {
+                Ok(Message::Text(text)) => {
+                    match self.parse_event(&text) {
+                        Ok(event) => {
+                            if let Err(e) = event_tx.send(event) {
+                                #[cfg(feature = "logging")]
+                                error!("Failed to send event: {}", e);
+                            }
+                        }
+                        Err(e) => {
+                            #[cfg(feature = "logging")]
+                            error!("Failed to parse event: {}", e);
+                        }
+                    }
+                }
+                Ok(Message::Close(_)) => {
+                    #[cfg(feature = "logging")]
+                    info!("WebSocket connection closed by server");
+                    if let Err(e) = event_tx.send(SoundTouchEvent::Disconnected) {
+                        #[cfg(feature = "logging")]
+                        error!("Failed to send disconnect event: {}", e);
+                    }
+                    break;
+                }
+                Err(e) => {
+                    #[cfg(feature = "logging")]
+                    error!("WebSocket error: {}", e);
+                    break;
+                }
+                _ => {}
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Parse a WebSocket event from XML
+    #[cfg(feature = "websocket")]
+    pub fn parse_event(&self, xml: &str) -> Result<SoundTouchEvent> {
+        // First try to parse device info
+        if xml.contains("SoundTouchSdkInfo") {
+            return match quick_xml::de::from_str::<SdkInfo>(xml) {
+                Ok(info) => Ok(SoundTouchEvent::DeviceInfo(info)),
+                Err(e) => {
+                    error!("Failed to parse SdkInfo: {}", e);
+                    Err(BoseError::XmlError(e))
+                }
+            };
+        }
+
+        // Then try user activity
+        if xml.contains("userActivityUpdate") {
+            return match quick_xml::de::from_str::<UserActivity>(xml) {
+                Ok(activity) => Ok(SoundTouchEvent::UserActivity(activity)),
+                Err(e) => {
+                    error!("Failed to parse UserActivity: {}", e);
+                    Err(BoseError::XmlError(e))
+                }
+            };
+        }
+
+        // Try to parse updates wrapper
+        if xml.contains("<updates") {
+            match quick_xml::de::from_str::<Updates>(xml) {
+                Ok(updates) => {
+                    // Convert the update to an event
+                    if let Some(volume) = updates.volume_updated {
+                        Ok(SoundTouchEvent::VolumeUpdated(volume))
+                    } else if let Some(now_playing) = updates.now_playing_updated {
+                        Ok(SoundTouchEvent::NowPlayingUpdated(now_playing))
+                    } else if let Some(recents) = updates.recents_updated {
+                        Ok(SoundTouchEvent::RecentsUpdated(recents))
+                    } else if let Some(connection) = updates.connection_state_updated {
+                        Ok(SoundTouchEvent::ConnectionStateUpdated(connection))
+                    } else {
+                        error!("Unknown update type in: {}", xml);
+                        Err(BoseError::ProtocolError("Unknown update type".to_string()))
+                    }
+                }
+                Err(e) => {
+                    error!("Failed to parse Updates: {} from text: {}", e, xml);
+                    Err(BoseError::XmlError(e))
+                }
+            }
+        } else {
+            error!("Unhandled message type: {}", xml);
+            Err(BoseError::ProtocolError("Unhandled message type".to_string()))
         }
     }
 
@@ -91,8 +282,8 @@ impl BoseClient {
 
     /// Gets information about the device
     pub async fn get_info(&self) -> Result<DeviceInfo> {
-        let url = format!("http://{}:8090/info", &self.hostname);
-        get_xml(url).await
+        let url = "/info".to_string();
+        self.get_xml(&url).await
     }
 
     /// Sets the device name
@@ -138,14 +329,14 @@ impl BoseClient {
 
     /// Gets the current playback status
     pub async fn get_status(&self) -> Result<NowPlaying> {
-        let url = format!("http://{}:8090/now_playing", &self.hostname);
-        get_xml(url).await
+        let url = "/now_playing".to_string();
+        self.get_xml(&url).await
     }
 
     /// Gets the current volume settings
     pub async fn get_volume(&self) -> Result<Volume> {
-        let url = format!("http://{}:8090/volume", &self.hostname);
-        get_xml(url).await
+        let url = "/volume".to_string();
+        self.get_xml(&url).await
     }
 
     /// Sets the volume level
@@ -160,8 +351,8 @@ impl BoseClient {
 
     /// Gets the list of presets
     pub async fn get_presets(&self) -> Result<Presets> {
-        let url = format!("http://{}:8090/presets", &self.hostname);
-        get_xml(url).await
+        let url = "/presets".to_string();
+        self.get_xml(&url).await
     }
 
     /// Selects a preset
@@ -179,7 +370,7 @@ impl BoseClient {
             4 => self.press_and_release_key(&KeyValue::Preset4).await,
             5 => self.press_and_release_key(&KeyValue::Preset5).await,
             6 => self.press_and_release_key(&KeyValue::Preset6).await,
-            _ => Err(BoseClientError::InvalidPreset(format!(
+            _ => Err(BoseError::InvalidPreset(format!(
                 "{} is not a valid preset (1-6).",
                 value
             ))),
@@ -188,8 +379,8 @@ impl BoseClient {
 
     /// Gets the list of available sources
     pub async fn get_sources(&self) -> Result<Sources> {
-        let url = format!("http://{}:8090/sources", &self.hostname);
-        get_xml(url).await
+        let url = "/sources".to_string();
+        self.get_xml(&url).await
     }
 
     /// Selects a source for playback
@@ -274,8 +465,8 @@ impl BoseClient {
     /// # }
     /// ```
     pub async fn get_zone(&self) -> Result<Zone> {
-        let url = format!("http://{}:8090/getZone", &self.hostname);
-        get_xml(url).await
+        let url = "/getZone".to_string();
+        self.get_xml(&url).await
     }
 
     /// Creates or updates a multi-room zone
@@ -448,8 +639,8 @@ impl BoseClient {
     /// # }
     /// ```
     pub async fn get_bass_capabilities(&self) -> Result<BassCapabilities> {
-        let url = format!("http://{}:8090/bassCapabilities", &self.hostname);
-        get_xml(url).await
+        let url = "/bassCapabilities".to_string();
+        self.get_xml(&url).await
     }
 
     /// Gets the current bass settings
@@ -467,8 +658,8 @@ impl BoseClient {
     /// # }
     /// ```
     pub async fn get_bass(&self) -> Result<Bass> {
-        let url = format!("http://{}:8090/bass", &self.hostname);
-        get_xml(url).await
+        let url = "/bass".to_string();
+        self.get_xml(&url).await
     }
 
     /// Sets the bass level
@@ -560,7 +751,14 @@ impl BoseClient {
 
     /// Toggles between play and pause states
     pub async fn play_pause(&self) -> Result<()> {
-        self.press_and_release_key(&KeyValue::PlayPause).await
+        // First try to play
+        let result = self.press_and_release_key(&KeyValue::Play).await;
+        if result.is_err() {
+            // If play fails, try pause
+            self.press_and_release_key(&KeyValue::Pause).await
+        } else {
+            Ok(())
+        }
     }
 
     /// Gives thumbs up to current track
@@ -587,11 +785,38 @@ impl BoseClient {
     pub async fn remove_favorite(&self) -> Result<()> {
         self.press_and_release_key(&KeyValue::RemoveFavorite).await
     }
+
+    #[cfg(feature = "logging")]
+    async fn get_xml<T: DeserializeOwned>(&self, path: &str) -> Result<T> {
+        let url = format!("http://{}:8090{}", self.hostname, path);
+        let response = Client::new()
+            .get(&url)
+            .send()
+            .await
+            .map_err(BoseError::HttpClientError)?;
+        let body = response.text().await?;
+        log::debug!("Response from {}: {}", url, body);
+        let value: T = quick_xml::de::from_str(&body).map_err(BoseError::XmlError)?;
+        Ok(value)
+    }
+
+    #[cfg(not(feature = "logging"))]
+    async fn get_xml<T: DeserializeOwned>(&self, path: &str) -> Result<T> {
+        let url = format!("http://{}:8090{}", self.hostname, path);
+        let response = Client::new()
+            .get(&url)
+            .send()
+            .await
+            .map_err(BoseError::HttpClientError)?;
+        let body = response.text().await?;
+        let value: T = quick_xml::de::from_str(&body).map_err(BoseError::XmlError)?;
+        Ok(value)
+    }
 }
 
 /// Remote control key values supported by the SoundTouch API
 #[derive(Debug, Serialize, Deserialize, Copy, Clone)]
-#[serde(rename_all = "UPPERCASE")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum KeyValue {
     /// Play the current media
     Play,
@@ -599,55 +824,47 @@ pub enum KeyValue {
     Pause,
     /// Stop playback
     Stop,
-    /// Skip to previous track
-    PrevTrack,
     /// Skip to next track
+    #[serde(rename = "NEXT_TRACK")]
     NextTrack,
+    /// Return to previous track
+    #[serde(rename = "PREV_TRACK")]
+    PrevTrack,
+    /// Toggle mute
+    Mute,
+    /// Toggle power
+    Power,
     /// Give thumbs up to current track
+    #[serde(rename = "THUMBS_UP")]
     ThumbsUp,
     /// Give thumbs down to current track
+    #[serde(rename = "THUMBS_DOWN")]
     ThumbsDown,
     /// Bookmark the current track/station
     Bookmark,
-    /// Toggle power state
-    Power,
-    /// Toggle mute state
-    Mute,
     /// Select preset 1
-    #[serde(rename(serialize = "PRESET_1"))]
+    #[serde(rename = "PRESET_1")]
     Preset1,
     /// Select preset 2
-    #[serde(rename(serialize = "PRESET_2"))]
+    #[serde(rename = "PRESET_2")]
     Preset2,
     /// Select preset 3
-    #[serde(rename(serialize = "PRESET_3"))]
+    #[serde(rename = "PRESET_3")]
     Preset3,
     /// Select preset 4
-    #[serde(rename(serialize = "PRESET_4"))]
+    #[serde(rename = "PRESET_4")]
     Preset4,
     /// Select preset 5
-    #[serde(rename(serialize = "PRESET_5"))]
+    #[serde(rename = "PRESET_5")]
     Preset5,
     /// Select preset 6
-    #[serde(rename(serialize = "PRESET_6"))]
+    #[serde(rename = "PRESET_6")]
     Preset6,
-    /// Switch to AUX input
-    AuxInput,
-    /// Turn shuffle mode off
-    ShuffleOff,
-    /// Turn shuffle mode on
-    ShuffleOn,
-    /// Turn repeat mode off
-    RepeatOff,
-    /// Repeat current track
-    RepeatOne,
-    /// Repeat all tracks
-    RepeatAll,
-    /// Toggle between play and pause
-    PlayPause,
     /// Add current item to favorites
+    #[serde(rename = "ADD_FAVORITE")]
     AddFavorite,
     /// Remove current item from favorites
+    #[serde(rename = "REMOVE_FAVORITE")]
     RemoveFavorite,
 }
 
@@ -782,9 +999,9 @@ pub struct Volume {
 
 #[derive(Debug, Serialize)]
 #[serde(rename(serialize = "volume"))]
-struct PostVolume {
+pub struct PostVolume {
     #[serde(rename = "$value")]
-    value: i32,
+    pub value: i32,
 }
 
 impl PostVolume {
@@ -794,30 +1011,30 @@ impl PostVolume {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename(serialize = "key"))]
-struct PostKey {
-    #[serde(rename = "@state")]
-    state: KeyState,
-    #[serde(rename = "@sender")]
-    sender: String,
+#[serde(rename = "key")]
+pub struct PostKey<'a> {
     #[serde(rename = "$text")]
-    value: KeyValue,
+    value: &'a KeyValue,
+    #[serde(rename = "@state")]
+    state: &'static str,
+    #[serde(rename = "@sender")]
+    sender: &'static str,
 }
 
-impl PostKey {
-    pub fn press(value: &KeyValue) -> PostKey {
-        PostKey {
-            state: KeyState::Press,
-            sender: "Gabbo".to_string(),
-            value: *value,
+impl<'a> PostKey<'a> {
+    pub fn press(key: &'a KeyValue) -> Self {
+        Self {
+            value: key,
+            state: "press",
+            sender: "Gabbo",
         }
     }
 
-    pub fn release(value: &KeyValue) -> PostKey {
-        PostKey {
-            state: KeyState::Release,
-            sender: "Gabbo".to_string(),
-            value: *value,
+    pub fn release(value: &'a KeyValue) -> Self {
+        Self {
+            value,
+            state: "release",
+            sender: "Gabbo",
         }
     }
 }
@@ -885,7 +1102,7 @@ fn serialize_xml<T>(value: &T) -> Result<String>
 where
     T: ?Sized + Serialize,
 {
-    quick_xml::se::to_string(value).map_err(BoseClientError::XmlError)
+    quick_xml::se::to_string(value).map_err(BoseError::XmlError)
 }
 
 async fn post_xml<U: IntoUrl + Debug + Clone, T: ?Sized + Serialize + Debug>(
@@ -899,21 +1116,8 @@ async fn post_xml<U: IntoUrl + Debug + Clone, T: ?Sized + Serialize + Debug>(
         .body(body.clone())
         .send()
         .await
-        .map_err(BoseClientError::HttpClientError)?;
+        .map_err(BoseError::HttpClientError)?;
     Ok(())
-}
-
-async fn get_xml<U: IntoUrl + Debug + Clone, T: DeserializeOwned>(url: U) -> Result<T> {
-    let client = Client::new();
-    let response = client
-        .get(url.clone())
-        .send()
-        .await
-        .map_err(BoseClientError::HttpClientError)?;
-    let body = response.text().await?;
-    tracing::debug!("Response from {}: {}", url.as_str(), body);
-    let value: T = quick_xml::de::from_str(&body).map_err(BoseClientError::XmlError)?;
-    Ok(value)
 }
 
 /// Information about the device
@@ -1102,33 +1306,4 @@ pub struct Bass {
 struct SetBass {
     #[serde(rename = "$value")]
     value: i32,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_key_serializer() {
-        assert_eq!(
-            "<key state=\"press\" sender=\"Gabbo\">POWER</key>".to_string(),
-            serialize_xml(&PostKey::press(&KeyValue::Power)).unwrap()
-        )
-    }
-
-    #[test]
-    fn test_preset_key_serializer() {
-        assert_eq!(
-            "<key state=\"press\" sender=\"Gabbo\">PRESET_1</key>".to_string(),
-            serialize_xml(&PostKey::press(&KeyValue::Preset1)).unwrap()
-        )
-    }
-
-    #[test]
-    fn test_volume_serializer() {
-        assert_eq!(
-            "<volume>9</volume>".to_string(),
-            serialize_xml(&PostVolume { value: 9 }).unwrap()
-        )
-    }
 }

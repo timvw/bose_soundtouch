@@ -5,10 +5,11 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use image::load_from_memory;
+use log;
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
+    style::{Color, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Paragraph},
     Frame, Terminal,
@@ -36,8 +37,10 @@ struct App {
 
 impl App {
     fn new(hostname: &str) -> Self {
+        let mut client = BoseClient::new(hostname);
+        let _rx = client.subscribe();
         Self {
-            client: BoseClient::new(hostname),
+            client,
             device_info: None,
             now_playing: None,
             volume: None,
@@ -166,6 +169,82 @@ impl App {
 
         Ok(())
     }
+
+    fn draw(&mut self, f: &mut Frame) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(1)
+            .constraints([
+                Constraint::Length(5),  // Device info
+                Constraint::Length(20), // Now playing + artwork
+                Constraint::Length(3),  // Volume
+                Constraint::Length(8),  // Presets
+                Constraint::Length(8),  // Controls
+            ].as_ref())
+            .split(f.area());
+
+        // Device info
+        let device_info = Paragraph::new(self.device_info.as_deref().unwrap_or("Loading..."))
+            .block(Block::default().title("Device Info").borders(Borders::ALL));
+        f.render_widget(device_info, chunks[0]);
+
+        // Now playing with artwork
+        let now_playing_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(60),
+                Constraint::Percentage(40),
+            ].as_ref())
+            .split(chunks[1]);
+
+        let now_playing = Paragraph::new(self.now_playing.as_deref().unwrap_or("Loading..."))
+            .block(Block::default().title("Now Playing").borders(Borders::ALL));
+        f.render_widget(now_playing, now_playing_chunks[0]);
+
+        // Artwork placeholder
+        let artwork = Paragraph::new("")
+            .block(Block::default().title("Artwork").borders(Borders::ALL));
+        f.render_widget(artwork, now_playing_chunks[1]);
+
+        // Volume
+        let volume = Paragraph::new(self.volume.as_deref().unwrap_or("Loading..."))
+            .block(Block::default().title("Volume").borders(Borders::ALL));
+        f.render_widget(volume, chunks[2]);
+
+        // Presets
+        let preset_items: Vec<ListItem> = self.presets
+            .as_ref()
+            .map(|presets| {
+                presets.iter()
+                    .map(|preset| {
+                        ListItem::new(vec![
+                            Line::from(vec![
+                                Span::raw(format!("#{} ", preset.id)),
+                                Span::styled(&preset.content_item.name, Style::default().fg(Color::Yellow)),
+                            ]),
+                        ])
+                    })
+                    .collect()
+            })
+            .unwrap_or_else(|| vec![ListItem::new("Loading presets...")]);
+
+        let presets = List::new(preset_items)
+            .block(Block::default().title("Presets").borders(Borders::ALL));
+        f.render_widget(presets, chunks[3]);
+
+        // Controls
+        let controls = List::new(vec![
+            ListItem::new("Space - Play/Pause"),
+            ListItem::new("←/→ - Previous/Next Track"),
+            ListItem::new("↑/↓ - Volume Up/Down"),
+            ListItem::new("m - Mute"),
+            ListItem::new("p - Power"),
+            ListItem::new("1-6 - Select Preset"),
+            ListItem::new("q - Quit"),
+        ])
+        .block(Block::default().title("Controls").borders(Borders::ALL));
+        f.render_widget(controls, chunks[4]);
+    }
 }
 
 #[tokio::main]
@@ -191,7 +270,17 @@ async fn main() -> io::Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     // Create app and run it
-    let mut app = App::new("192.168.1.143"); // Replace with your speaker's IP
+    let mut app = App::new("192.168.1.143");
+    
+    // Start WebSocket listener in background
+    let mut client = BoseClient::new(app.client.hostname());
+    let _rx = client.subscribe();
+    tokio::spawn(async move {
+        if let Err(e) = client.connect_and_listen().await {
+            log::error!("WebSocket error: {}", e);
+        }
+    });
+
     let res = run_app(&mut terminal, &mut app).await;
 
     // Restore terminal
@@ -242,7 +331,7 @@ async fn run_app(
                     Constraint::Length(8),  // Presets (single row)
                     Constraint::Length(8),  // Controls
                 ])
-                .split(f.size());
+                .split(f.area());
 
             let now_playing_chunks = Layout::default()
                 .direction(Direction::Horizontal)
@@ -253,7 +342,7 @@ async fn run_app(
             layout_info = Some((now_playing_chunks[1], chunks[3]));
 
             // Draw the UI
-            ui(f, app)
+            app.draw(f);
         })?;
 
         // Get layout info
@@ -399,146 +488,5 @@ async fn run_app(
         }
 
         sleep(Duration::from_millis(100)).await;
-    }
-}
-
-fn ui(f: &mut Frame, app: &App) {
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .margin(1)
-        .constraints(
-            [
-                Constraint::Length(5),  // Device info
-                Constraint::Length(20), // Now playing + artwork
-                Constraint::Length(3),  // Volume
-                Constraint::Length(8),  // Presets (single row)
-                Constraint::Length(8),  // Controls
-            ]
-            .as_ref(),
-        )
-        .split(f.size());
-
-    // Device info
-    let device_info = Paragraph::new(app.device_info.as_deref().unwrap_or("Loading..."))
-        .block(Block::default().title("Device Info").borders(Borders::ALL));
-    f.render_widget(device_info, chunks[0]);
-
-    // Now playing with artwork
-    let now_playing_chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
-        .split(chunks[1]);
-
-    let now_playing = Paragraph::new(app.now_playing.as_deref().unwrap_or("Loading..."))
-        .block(Block::default().title("Now Playing").borders(Borders::ALL));
-    f.render_widget(now_playing, now_playing_chunks[0]);
-
-    // Empty artwork container
-    let artwork = Paragraph::new("").block(Block::default().title("Artwork").borders(Borders::ALL));
-    f.render_widget(artwork, now_playing_chunks[1]);
-
-    // Volume
-    let volume = Paragraph::new(app.volume.as_deref().unwrap_or("Loading..."))
-        .block(Block::default().title("Volume").borders(Borders::ALL));
-    f.render_widget(volume, chunks[2]);
-
-    // Presets
-    let preset_items: Vec<ListItem> = app
-        .presets
-        .as_ref()
-        .map(|presets| {
-            presets
-                .iter()
-                .enumerate()
-                .map(|(i, preset)| {
-                    ListItem::new(vec![
-                        // Make the title more prominent
-                        Line::from(vec![
-                            Span::styled(
-                                format!("#{}", i + 1),
-                                Style::default()
-                                    .add_modifier(Modifier::BOLD)
-                                    .fg(Color::Yellow),
-                            ),
-                            Span::raw(" "),
-                            Span::styled(
-                                truncate_str(&preset.content_item.name, 20),
-                                Style::default()
-                                    .add_modifier(Modifier::BOLD)
-                                    .fg(Color::White),
-                            ),
-                        ]),
-                        // Add source info
-                        Line::from(vec![Span::styled(
-                            if preset.content_item.source_account.is_empty() {
-                                &preset.content_item.source
-                            } else {
-                                &preset.content_item.source_account
-                            },
-                            Style::default().fg(Color::Gray),
-                        )]),
-                        // Space for artwork
-                        Line::from(""),
-                        Line::from(""),
-                        Line::from(""),
-                    ])
-                })
-                .collect()
-        })
-        .unwrap_or_else(|| vec![ListItem::new("Loading presets...")]);
-
-    let presets = List::new(preset_items)
-        .block(Block::default().title("Presets").borders(Borders::ALL))
-        .style(Style::default().fg(Color::White));
-
-    f.render_widget(presets, chunks[3]);
-
-    // Controls
-    let controls = vec![
-        ListItem::new(Line::from(vec![
-            Span::styled("Space", Style::default().add_modifier(Modifier::BOLD)),
-            Span::raw(" - Play/Pause"),
-        ])),
-        ListItem::new(Line::from(vec![
-            Span::styled("←/→", Style::default().add_modifier(Modifier::BOLD)),
-            Span::raw(" - Previous/Next Track"),
-        ])),
-        ListItem::new(Line::from(vec![
-            Span::styled("↑/↓", Style::default().add_modifier(Modifier::BOLD)),
-            Span::raw(" - Volume Up/Down"),
-        ])),
-        ListItem::new(Line::from(vec![
-            Span::styled("m", Style::default().add_modifier(Modifier::BOLD)),
-            Span::raw(" - Mute"),
-        ])),
-        ListItem::new(Line::from(vec![
-            Span::styled("p", Style::default().add_modifier(Modifier::BOLD)),
-            Span::raw(" - Power"),
-        ])),
-        ListItem::new(Line::from(vec![
-            Span::styled("1-6", Style::default().add_modifier(Modifier::BOLD)),
-            Span::raw(" - Select Preset"),
-        ])),
-        ListItem::new(Line::from(vec![
-            Span::styled("q", Style::default().add_modifier(Modifier::BOLD)),
-            Span::raw(" - Quit"),
-        ])),
-    ];
-
-    let controls = List::new(controls)
-        .block(Block::default().title("Controls").borders(Borders::ALL))
-        .style(Style::default().fg(Color::White))
-        .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
-        .highlight_symbol(">>");
-
-    f.render_widget(controls, chunks[4]);
-}
-
-/// Truncates a string to fit within a given width
-fn truncate_str(s: &str, width: usize) -> String {
-    if s.len() <= width {
-        s.to_string()
-    } else {
-        format!("{}...", &s[..width - 3])
     }
 }
