@@ -13,7 +13,7 @@ tokio = { version = "1", features = ["full"] }
 
 ## HTTP API Example
 
-```rust
+```rust,no_run
 use bose_soundtouch::BoseClient;
 
 #[tokio::main]
@@ -26,7 +26,7 @@ async fn main() {
 
 ## WebSocket API Example
 
-```rust
+```rust,no_run
 use bose_soundtouch::{SoundTouchWebSocket, SoundTouchEvent};
 use tokio;
 
@@ -68,22 +68,15 @@ mod error;
 mod types;
 mod websocket;
 
-pub use error::SoundTouchError;
-pub use types::SoundTouchEvent;
+pub use error::{BoseError, Result};
+pub use types::*;
 pub use websocket::SoundTouchWebSocket;
 
-// Remove unused imports
 use reqwest::{Client, IntoUrl};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fmt::Debug;
-use thiserror::Error;
-
-// Add WebSocket dependencies to existing uses
-use tokio_tungstenite;
-use futures_util;
-use tokio::sync::broadcast;
 
 /// Client for interacting with Bose SoundTouch devices
 ///
@@ -94,30 +87,14 @@ pub struct BoseClient {
     hostname: String,
 }
 
-/// Errors that can occur when interacting with the Bose SoundTouch API
-#[derive(Error, Debug)]
-pub enum BoseClientError {
-    /// Invalid preset number was specified (valid range: 1-6)
-    #[error("Invalid Preset")]
-    InvalidPreset(String),
-    /// Failed to serialize or deserialize XML data
-    #[error("Failed to (de)serialize from XML")]
-    XmlError(#[from] quick_xml::DeError),
-    /// HTTP client encountered an error
-    #[error("Http client issue")]
-    HttpClientError(#[from] reqwest::Error),
-}
-
-pub type Result<T> = std::result::Result<T, BoseClientError>;
-
 impl BoseClient {
     /// Creates a new BoseClient instance
     ///
     /// # Arguments
     /// * `hostname` - IP address or hostname of the SoundTouch device
-    pub fn new(hostname: &str) -> BoseClient {
-        BoseClient {
-            hostname: String::from(hostname),
+    pub fn new<S: Into<String>>(hostname: S) -> Self {
+        Self {
+            hostname: hostname.into(),
         }
     }
 
@@ -231,7 +208,7 @@ impl BoseClient {
             4 => self.press_and_release_key(&KeyValue::Preset4).await,
             5 => self.press_and_release_key(&KeyValue::Preset5).await,
             6 => self.press_and_release_key(&KeyValue::Preset6).await,
-            _ => Err(BoseClientError::InvalidPreset(format!(
+            _ => Err(BoseError::InvalidPreset(format!(
                 "{} is not a valid preset (1-6).",
                 value
             ))),
@@ -937,7 +914,7 @@ fn serialize_xml<T>(value: &T) -> Result<String>
 where
     T: ?Sized + Serialize,
 {
-    quick_xml::se::to_string(value).map_err(BoseClientError::XmlError)
+    quick_xml::se::to_string(value).map_err(BoseError::XmlError)
 }
 
 async fn post_xml<U: IntoUrl + Debug + Clone, T: ?Sized + Serialize + Debug>(
@@ -951,7 +928,7 @@ async fn post_xml<U: IntoUrl + Debug + Clone, T: ?Sized + Serialize + Debug>(
         .body(body.clone())
         .send()
         .await
-        .map_err(BoseClientError::HttpClientError)?;
+        .map_err(BoseError::HttpClientError)?;
     Ok(())
 }
 
@@ -961,10 +938,10 @@ async fn get_xml<U: IntoUrl + Debug + Clone, T: DeserializeOwned>(url: U) -> Res
         .get(url.clone())
         .send()
         .await
-        .map_err(BoseClientError::HttpClientError)?;
+        .map_err(BoseError::HttpClientError)?;
     let body = response.text().await?;
     tracing::debug!("Response from {}: {}", url.as_str(), body);
-    let value: T = quick_xml::de::from_str(&body).map_err(BoseClientError::XmlError)?;
+    let value: T = quick_xml::de::from_str(&body).map_err(BoseError::XmlError)?;
     Ok(value)
 }
 

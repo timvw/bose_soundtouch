@@ -1,11 +1,16 @@
 use futures_util::StreamExt;
-use tokio_tungstenite::{connect_async, tungstenite::protocol::Message, tungstenite::client::IntoClientRequest};
+use tokio_tungstenite::{
+    connect_async,
+    tungstenite::{
+        protocol::Message,
+        client::IntoClientRequest,
+    },
+};
 use log::{info, error, warn};
-use anyhow::{Result, Context};
 use tokio::sync::broadcast;
 use quick_xml::de::from_str;
 use url::Url;
-use crate::types::*;
+use crate::{types::*, error::{Result, BoseError}};
 
 pub struct SoundTouchWebSocket {
     host: String,
@@ -24,22 +29,25 @@ impl SoundTouchWebSocket {
 
     pub async fn connect_and_listen(&self) -> Result<()> {
         let url_str = format!("ws://{}:8080", self.host);
-        let url = Url::parse(&url_str).context("Failed to parse WebSocket URL")?;
+        let url = Url::parse(&url_str).map_err(BoseError::UrlParseError)?;
 
         info!("Connecting to {}", url);
 
-        let mut request = url.into_client_request()?;
+        let mut request = url.into_client_request()
+            .map_err(|e| BoseError::ProtocolError(e.to_string()))?;
+            
         request.headers_mut().insert(
             "Sec-WebSocket-Protocol",
-            "gabbo".parse().context("Failed to parse protocol header")?
+            "gabbo".parse()
+                .map_err(|e| BoseError::ProtocolError(format!("Failed to parse protocol header: {}", e)))?
         );
 
         let (ws_stream, response) = connect_async(request)
             .await
-            .context("Failed to connect")?;
+            .map_err(BoseError::ConnectionError)?;
 
         if response.headers().get("Sec-WebSocket-Protocol").map(|h| h.as_bytes()) != Some(b"gabbo") {
-            return Err(anyhow::anyhow!("Server did not accept gabbo protocol"));
+            return Err(BoseError::ProtocolError("Server did not accept gabbo protocol".to_string()));
         }
 
         info!("WebSocket connection established with gabbo protocol");
