@@ -10,48 +10,35 @@ authors = ["Tim Van Wassenhove <tim@timvw.be>"]
 keywords = ["bose", "soundtouch", "client"]
 license = "Apache-2.0"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = ["websocket", "logging"]
+websocket = ["tokio", "tokio-tungstenite", "futures-util", "url"]
+logging = ["log"]
 
 [dependencies]
-# Error handling
 thiserror = "1.0"
-
-# XML handling and serialization
 quick-xml = { version = "0.31", features = ["serialize"] }
 serde = { version = "1.0", features = ["derive"] }
-
-# HTTP client
 reqwest = { version = "0.11" }
-
-# WebSocket support
-tokio = { version = "1.36", features = ["sync"] }
-tokio-tungstenite = "0.21"
-futures-util = "0.3"
-url = "2.5"
-
-# Basic logging
-log = "0.4"
+tokio = { version = "1.36", features = ["sync"], optional = true }
+tokio-tungstenite = { version = "0.21", optional = true }
+futures-util = { version = "0.3", optional = true }
+url = { version = "2.5", optional = true }
+log = { version = "0.4", optional = true }
 
 [dev-dependencies]
-# Testing
 tokio = { version = "1.36", features = ["rt", "macros", "rt-multi-thread", "test-util"] }
 tokio-test = "0.4"
 pretty_assertions = "1.4"
 anyhow = "1.0"
-
-# TUI example
 ratatui = "0.29.0"
 crossterm = "0.28.0"
 viuer = "0.6"
 image = { version = "0.24", features = ["jpeg", "png"] }
 imageproc = "0.25"
 rusttype = "0.9"
-
-# Example logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
-
-# CLI example
 clap = { version = "4.5.4", features = ["derive", "env"] }
 
