@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1](https://github.com/timvw/bose_soundtouch/compare/v2.1.0...v2.1.1) - 2025-03-03
+
+### Fixed
+
+- *(deps)* update rust crate reqwest to 0.12 ([#111](https://github.com/timvw/bose_soundtouch/pull/111))
+- *(deps)* update rust crate url to v2.5.4 ([#110](https://github.com/timvw/bose_soundtouch/pull/110))
+- *(deps)* update rust crate log to v0.4.26 ([#108](https://github.com/timvw/bose_soundtouch/pull/108))
+- *(deps)* update rust crate futures-util to v0.3.31 ([#107](https://github.com/timvw/bose_soundtouch/pull/107))
+
+### Other
+
+- *(deps)* update rust crate anyhow to v1.0.97 ([#113](https://github.com/timvw/bose_soundtouch/pull/113))
+- *(deps)* update rust crate clap to v4.5.31 ([#109](https://github.com/timvw/bose_soundtouch/pull/109))
+- cleanup feature flags
+
 ## [2.0.0](https://github.com/timvw/bose_soundtouch/compare/v1.1.0...v2.0.0) - 2025-02-16
 
 ### Added
