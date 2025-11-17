@@ -290,7 +290,7 @@ dependencies = [
 
 [[package]]
 name = "bose_soundtouch"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "anyhow",
  "clap",
