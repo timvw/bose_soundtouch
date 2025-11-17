@@ -1274,6 +1274,7 @@ struct SelectSource {
 
 /// Zone configuration for multi-room audio
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename = "zone")]
 pub struct Zone {
     /// MAC address of the master device
     #[serde(rename = "@master")]
