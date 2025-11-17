@@ -18,7 +18,6 @@ use {
         widgets::{Block, Borders, List, ListItem, Paragraph},
         Frame, Terminal,
     },
-    reqwest,
     std::{collections::HashMap, io, time::Duration},
     tokio::time::sleep,
     tracing_appender::rolling::{RollingFileAppender, Rotation},
