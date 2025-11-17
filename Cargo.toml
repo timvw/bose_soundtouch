@@ -34,7 +34,7 @@ tokio-test = "0.4"
 pretty_assertions = "1.4"
 anyhow = "1.0"
 ratatui = "0.29.0"
-crossterm = "0.28.0"
+crossterm = "0.29.0"
 viuer = "0.9"
 image = { version = "0.25", features = ["jpeg", "png"] }
 imageproc = "0.25"
