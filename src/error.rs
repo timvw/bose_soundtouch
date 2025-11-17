@@ -1,5 +1,6 @@
 //! Error types for the Bose SoundTouch API
 
+use quick_xml::errors::serialize::SeError;
 use thiserror::Error;
 
 /// Errors that can occur when using the SoundTouch API
@@ -9,9 +10,13 @@ pub enum BoseError {
     #[error("Invalid Preset")]
     InvalidPreset(String),
 
-    /// Failed to serialize or deserialize XML data
-    #[error("Failed to (de)serialize from XML")]
+    /// Failed to deserialize XML data
+    #[error("Failed to deserialize from XML")]
     XmlError(#[from] quick_xml::DeError),
+
+    /// Failed to serialize XML data
+    #[error("Failed to serialize to XML")]
+    SerializeError(#[from] SeError),
 
     /// HTTP client encountered an error
     #[error("Http client issue")]
