@@ -35,8 +35,8 @@ pretty_assertions = "1.4"
 anyhow = "1.0"
 ratatui = "0.29.0"
 crossterm = "0.28.0"
-viuer = "0.6"
-image = { version = "0.24", features = ["jpeg", "png"] }
+viuer = "0.9"
+image = { version = "0.25", features = ["jpeg", "png"] }
 imageproc = "0.25"
 rusttype = "0.9"
 tracing = "0.1"

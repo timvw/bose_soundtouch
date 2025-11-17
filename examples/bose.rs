@@ -57,34 +57,33 @@ async fn main() {
         Command::Power => client
             .power()
             .await
-            .with_context(|| format!("Failed to switch power")),
+            .with_context(|| "Failed to switch power".to_string()),
         Command::Play => client
             .play()
             .await
-            .with_context(|| format!("Failed to send play")),
+            .with_context(|| "Failed to send play".to_string()),
         Command::Pause => client
             .pause()
             .await
-            .with_context(|| format!("Failed to send pause")),
+            .with_context(|| "Failed to send pause".to_string()),
         Command::Volume(volume_args) => match volume_args.value {
             Some(volume) => client
                 .set_volume(volume)
                 .await
-                .with_context(|| format!("Failed set volume")),
+                .with_context(|| "Failed set volume".to_string()),
             None => print_volume(&client).await,
         },
         Command::Preset(preset_args) => match preset_args.value {
             Some(preset) => client
                 .set_preset(preset)
                 .await
-                .with_context(|| format!("Failed to change preset")),
+                .with_context(|| "Failed to change preset".to_string()),
             None => print_presets(&client).await,
         },
     };
 
-    match result {
-        Err(e) => println!("Failed to execute command because {}", e),
-        Ok(_) => {}
+    if let Err(e) = result {
+        println!("Failed to execute command because {}", e);
     }
 }
 

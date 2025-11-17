@@ -48,7 +48,7 @@ mod tests {
             SoundTouchEvent::VolumeUpdated(update) => {
                 assert_eq!(update.volume.target_volume, 5);
                 assert_eq!(update.volume.actual_volume, 5);
-                assert_eq!(update.volume.mute_enabled, false);
+                assert!(!update.volume.mute_enabled);
             }
             _ => panic!("Expected VolumeUpdated event"),
         }
@@ -64,7 +64,7 @@ mod tests {
         match event {
             SoundTouchEvent::ConnectionStateUpdated(state) => {
                 assert_eq!(state.state, ConnectionStateType::NetworkWifiConnected);
-                assert_eq!(state.up, true);
+                assert!(state.up);
                 assert_eq!(state.signal, SignalStrength::GoodSignal);
             }
             _ => panic!("Expected ConnectionStateUpdated event"),
