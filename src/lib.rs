@@ -1126,7 +1126,7 @@ fn serialize_xml<T>(value: &T) -> Result<String>
 where
     T: ?Sized + Serialize,
 {
-    quick_xml::se::to_string(value).map_err(BoseError::XmlError)
+    quick_xml::se::to_string(value).map_err(BoseError::SerializeError)
 }
 
 async fn post_xml<U: IntoUrl + Debug + Clone, T: ?Sized + Serialize + Debug>(
