@@ -89,6 +89,9 @@ use std::fmt::Debug;
 #[cfg(feature = "logging")]
 use log::{error, info};
 
+#[cfg(all(feature = "logging", not(feature = "websocket")))]
+use tracing::error;
+
 #[cfg(feature = "websocket")]
 use {
     futures_util::StreamExt,
@@ -241,6 +244,7 @@ impl BoseClient {
             return match quick_xml::de::from_str::<SdkInfo>(xml) {
                 Ok(info) => Ok(SoundTouchEvent::DeviceInfo(info)),
                 Err(e) => {
+                    #[cfg(feature = "logging")]
                     error!("Failed to parse SdkInfo: {}", e);
                     Err(BoseError::XmlError(e))
                 }
@@ -252,6 +256,7 @@ impl BoseClient {
             return match quick_xml::de::from_str::<UserActivity>(xml) {
                 Ok(activity) => Ok(SoundTouchEvent::UserActivity(activity)),
                 Err(e) => {
+                    #[cfg(feature = "logging")]
                     error!("Failed to parse UserActivity: {}", e);
                     Err(BoseError::XmlError(e))
                 }
@@ -272,16 +277,19 @@ impl BoseClient {
                     } else if let Some(connection) = updates.connection_state_updated {
                         Ok(SoundTouchEvent::ConnectionStateUpdated(connection))
                     } else {
+                        #[cfg(feature = "logging")]
                         error!("Unknown update type in: {}", xml);
                         Err(BoseError::ProtocolError("Unknown update type".to_string()))
                     }
                 }
                 Err(e) => {
+                    #[cfg(feature = "logging")]
                     error!("Failed to parse Updates: {} from text: {}", e, xml);
                     Err(BoseError::XmlError(e))
                 }
             }
         } else {
+            #[cfg(feature = "logging")]
             error!("Unhandled message type: {}", xml);
             Err(BoseError::ProtocolError(
                 "Unhandled message type".to_string(),
