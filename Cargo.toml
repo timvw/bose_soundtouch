@@ -2,6 +2,7 @@
 name = "bose_soundtouch"
 version = "2.1.1"
 edition = "2021"
+rust-version = "1.85"
 description = "Rust client for the Bose SoundTouch API"
 homepage = "https://github.com/timvw/bose_soundtouch"
 repository = "https://github.com/timvw/bose_soundtouch"

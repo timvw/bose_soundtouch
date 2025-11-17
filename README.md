@@ -5,7 +5,7 @@
 [<img alt="docs.rs" src="https://img.shields.io/badge/docs.rs-bose_soundtouch-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs" height="20">](https://docs.rs/bose_soundtouch)
 [<img alt="build status" src="https://img.shields.io/github/actions/workflow/status/timvw/bose_soundtouch/ci.yml?branch=main&style=for-the-badge" height="20">](https://github.com/timvw/bose_soundtouch/actions?query=branch%3Amain)
 
-This library provides a client for the Bose SoundTouch API.
+This library provides a client for the Bose SoundTouch API. It targets Rust 1.85 and newer.
 
 ```toml
 [dependencies]
@@ -25,4 +25,3 @@ Releasing the example app can be done as following:
 ```bash
 cargo build --examples --release
 ```
-
