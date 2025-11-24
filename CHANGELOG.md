@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.2](https://github.com/timvw/bose_soundtouch/compare/v2.1.1...v2.1.2) - 2025-11-22
+
+### Other
+
+- *(deps)* update actions/checkout action to v6
+- *(deps)* update rust crate viuer to 0.10 ([#178](https://github.com/timvw/bose_soundtouch/pull/178))
+- *(deps)* update rust crate clap to v4.5.53 ([#177](https://github.com/timvw/bose_soundtouch/pull/177))
+- *(deps)* update rust crate clap to v4.5.52 ([#176](https://github.com/timvw/bose_soundtouch/pull/176))
+- update crossterm 0.29
+- *(deps)* update rust crate crossterm to 0.29.0
+- Merge pull request #112 from timvw/renovate/tokio-tungstenite-0.x
+- Merge remote-tracking branch 'origin/main' into renovate/tokio-tungstenite-0.x
+- raise MSRV to 1.85
+- bump quick-xml + thiserror
+
 ## [2.1.1](https://github.com/timvw/bose_soundtouch/compare/v2.1.0...v2.1.1) - 2025-11-17
 
 ### Fixed
