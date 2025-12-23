@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.3](https://github.com/timvw/bose_soundtouch/compare/v2.1.2...v2.1.3) - 2025-12-23
+
+### Other
+
+- *(deps)* update rust crate reqwest to v0.12.28 ([#189](https://github.com/timvw/bose_soundtouch/pull/189))
+- *(deps)* update rust crate reqwest to v0.12.27
+- *(deps)* update rust crate tracing to v0.1.44 ([#187](https://github.com/timvw/bose_soundtouch/pull/187))
+- *(deps)* update rust crate reqwest to v0.12.26 ([#186](https://github.com/timvw/bose_soundtouch/pull/186))
+- *(deps)* update rust crate viuer to 0.11 ([#185](https://github.com/timvw/bose_soundtouch/pull/185))
+- *(deps)* update rust crate reqwest to v0.12.25 ([#184](https://github.com/timvw/bose_soundtouch/pull/184))
+- *(deps)* update rust crate log to v0.4.29
+- *(deps)* update tokio-tracing monorepo
+- *(deps)* update rust crate tracing-appender to v0.2.4 ([#181](https://github.com/timvw/bose_soundtouch/pull/181))
+- Add settings to delete merged branches
+
 ## [2.1.2](https://github.com/timvw/bose_soundtouch/compare/v2.1.1...v2.1.2) - 2025-11-22
 
 ### Other
