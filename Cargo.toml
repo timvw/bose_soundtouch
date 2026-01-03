@@ -33,7 +33,7 @@ tokio = { version = "1.36", features = ["rt", "macros", "rt-multi-thread", "test
 tokio-test = "0.4"
 pretty_assertions = "1.4"
 anyhow = "1.0"
-ratatui = "0.29.0"
+ratatui = "0.30.0"
 crossterm = "0.29.0"
 viuer = "0.11"
 image = { version = "0.25", features = ["jpeg", "png"] }
