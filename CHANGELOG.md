@@ -6,6 +6,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.3](https://github.com/timvw/bose_soundtouch/compare/v2.1.2...v2.1.3) - 2026-02-28
+
+### Fixed
+
+- *(deps)* update rust crate quick-xml to 0.39 ([#198](https://github.com/timvw/bose_soundtouch/pull/198))
+- *(deps)* update rust crate reqwest to 0.13
+
+### Other
+
+- *(deps)* update rust crate imageproc to v0.26.1
+- *(deps)* update rust crate quick-xml to v0.39.2 ([#213](https://github.com/timvw/bose_soundtouch/pull/213))
+- *(deps)* update rust crate anyhow to v1.0.102
+- *(deps)* update rust crate clap to v4.5.60 ([#211](https://github.com/timvw/bose_soundtouch/pull/211))
+- *(deps)* update rust crate clap to v4.5.59
+- *(deps)* update rust crate quick-xml to v0.39.1 ([#209](https://github.com/timvw/bose_soundtouch/pull/209))
+- *(deps)* update rust crate futures-util to v0.3.32
+- *(deps)* update rust crate clap to v4.5.58
+- bump MSRV from 1.87 to 1.88
+- *(deps)* update rust crate imageproc to 0.26 ([#196](https://github.com/timvw/bose_soundtouch/pull/196))
+- *(deps)* update rust crate ratatui to 0.30.0
+- bump MSRV to 1.87.0
+- *(deps)* update rust crate reqwest to v0.13.2 ([#204](https://github.com/timvw/bose_soundtouch/pull/204))
+- *(deps)* update rust crate anyhow to v1.0.101 ([#203](https://github.com/timvw/bose_soundtouch/pull/203))
+- *(deps)* update rust crate clap to v4.5.57 ([#202](https://github.com/timvw/bose_soundtouch/pull/202))
+- *(deps)* update rust crate clap to v4.5.56 ([#201](https://github.com/timvw/bose_soundtouch/pull/201))
+- *(deps)* update rust crate clap to v4.5.55 ([#200](https://github.com/timvw/bose_soundtouch/pull/200))
+- *(deps)* update rust crate thiserror to v2.0.18
+- *(deps)* update rust crate url to v2.5.8 ([#197](https://github.com/timvw/bose_soundtouch/pull/197))
+- *(deps)* update rust crate tokio-test to v0.4.5 ([#195](https://github.com/timvw/bose_soundtouch/pull/195))
+- *(deps)* update rust crate tokio to v1.49.0 ([#194](https://github.com/timvw/bose_soundtouch/pull/194))
+- *(deps)* update rust crate clap to v4.5.54 ([#193](https://github.com/timvw/bose_soundtouch/pull/193))
+- *(deps)* update rust crate reqwest to v0.13.1 ([#192](https://github.com/timvw/bose_soundtouch/pull/192))
+- *(deps)* update rust crate reqwest to v0.12.28 ([#189](https://github.com/timvw/bose_soundtouch/pull/189))
+- *(deps)* update rust crate reqwest to v0.12.27
+- *(deps)* update rust crate tracing to v0.1.44 ([#187](https://github.com/timvw/bose_soundtouch/pull/187))
+- *(deps)* update rust crate reqwest to v0.12.26 ([#186](https://github.com/timvw/bose_soundtouch/pull/186))
+- *(deps)* update rust crate viuer to 0.11 ([#185](https://github.com/timvw/bose_soundtouch/pull/185))
+- *(deps)* update rust crate reqwest to v0.12.25 ([#184](https://github.com/timvw/bose_soundtouch/pull/184))
+- *(deps)* update rust crate log to v0.4.29
+- *(deps)* update tokio-tracing monorepo
+- *(deps)* update rust crate tracing-appender to v0.2.4 ([#181](https://github.com/timvw/bose_soundtouch/pull/181))
+- Add settings to delete merged branches
+
 ## [2.1.2](https://github.com/timvw/bose_soundtouch/compare/v2.1.1...v2.1.2) - 2025-11-22
 
 ### Other
