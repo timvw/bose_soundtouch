@@ -3,6 +3,9 @@ name: Release-plz
 permissions:
   pull-requests: write
   contents: write
+  # The OIDC token crates.io Trusted Publishing checks: release-plz trades it for a
+  # short-lived crates.io token, so no token is stored in the repo.
+  id-token: write
 
 on:
   push:
@@ -25,4 +28,3 @@ jobs:
         uses: MarcoIeni/release-plz-action@v0.5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
